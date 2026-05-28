@@ -1,0 +1,14 @@
+{
+  "name": "claude-camp",
+  "owner": { "name": "thaiha" },
+  "metadata": {
+    "description": "thaiha's Claude Code toolkit — the camp workflow (basecamp + kickcamp + PmCamp)."
+  },
+  "plugins": [
+    {
+      "name": "camp",
+      "source": "./",
+      "description": "PmCamp PM workflow: /basecamp bootstraps a project, /kickcamp drives feature delivery through the PmCamp persona."
+    }
+  ]
+}

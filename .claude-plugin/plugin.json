@@ -1,0 +1,8 @@
+{
+  "name": "camp",
+  "version": "1.0.0",
+  "description": "PM-orchestrated dev workflow for Claude Code. /basecamp bootstraps a project (greenfield or adopt) with the standard toolkit; /kickcamp hands a requirements doc to the PmCamp persona to triage, plan milestones, build via sub-agents, and verify with tests + git + acceptance.",
+  "author": { "name": "thaiha" },
+  "license": "MIT",
+  "keywords": ["workflow", "project-management", "bootstrap", "scaffold", "sub-agents", "token-efficient"]
+}
