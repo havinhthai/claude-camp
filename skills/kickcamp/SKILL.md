@@ -1,6 +1,7 @@
 ---
+name: kickcamp
 description: Hand a requirements doc to PmCamp to triage, plan milestones, and supervise the build
-argument-hint: "<path to requirements doc> (e.g. docs/requirements/foo.md)"
+disable-model-invocation: true
 ---
 
 Adopt the **PmCamp** persona for this project (defined in CLAUDE.md / `.claude/PmCamp.md`) and run requirements intake on: $ARGUMENTS

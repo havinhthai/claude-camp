@@ -1,6 +1,7 @@
 ---
+name: basecamp
 description: Bootstrap a project's standard dev stack — greenfield (new) or adopt (existing codebase)
-argument-hint: "[project-name] | adopt"
+disable-model-invocation: true
 ---
 
 You are a project bootstrap engineer. Set up a codebase with the user's standard dev stack by working through the 5 phases below IN ORDER. Argument (if given): $ARGUMENTS
@@ -24,11 +25,11 @@ These override everything else:
 <phase_1_audit>
 Global tooling — report `✅ present` / `❌ missing` for each:
 - Superpowers — list WHICH skills exist (brainstorming, writing-plans, TDD, code-review, requesting-code-review). Flag if PARTIAL.
-- claude-mem (try `claude-mem status`)
+- Memory: try `claude-mem status` first. ALSO check for any other memory system already in use — agentmemory MCP server, mem0, custom memory tools (look in `~/.claude/settings.json`, `~/.claude/mcp_servers.json`, env vars, project `.mcp.json`). If a non-claude-mem memory tool is present, report `✅ present ({tool})` and do NOT push claude-mem later.
 - caveman (compresses Claude's output)
 - rtk (Rust Token Killer — compresses command output; try `rtk gain`. A `~/.claude/RTK.md` is its install signature — likely already present)
 - agent-browser (token-efficient browser; try `agent-browser --version`)
-- Matt Pocock skills: improve-codebase-architecture, git-guardrails, setup-pre-commit
+- Matt Pocock skills: improve-codebase-architecture, git-guardrails-claude-code, setup-pre-commit
 - andrej-karpathy-skills (provides engineering principles)
 
 This project — check: git repo + commit history, existing `CLAUDE.md`, `.claude/` dir, code-review-graph (and whether its auto-update hooks are registered). ALSO detect whether this is an EXISTING codebase: real source files, a package manifest (package.json / pyproject.toml / requirements.txt / go.mod …), lockfiles, established dirs.
@@ -62,17 +63,61 @@ Lock answers, echo the final stack, then proceed.
 </phase_2_interview>
 
 <phase_3_install>
-Install ONLY what Phase 1 found missing. Ask before each global change.
-- **Superpowers** — If FULL, skip. If missing or PARTIAL, install the missing skills. `writing-plans` and `requesting-code-review` are REQUIRED: without them `brainstorming` dead-ends.
-- Missing Matt Pocock skills → install.
-- **andrej-karpathy-skills** → install if missing. It supplies the engineering principles (Think Before Coding, Simplicity, Surgical Changes, Goal-Driven) globally — do NOT hand-write these into any CLAUDE.md.
-- **code-review-graph** → `code-review-graph install --platform claude-code`, then `code-review-graph build`. ENSURE auto-update hooks (PostEdit, PostGit) are registered so the graph never goes stale. Do NOT enable watch mode — hooks are event-driven and cost nothing when idle.
-- **rtk** (optional, token saver) → if `rtk gain` failed in audit AND the user wants it: `rtk init -g`. If already present (RTK.md in ~/.claude), skip.
-- **agent-browser** (optional, token-efficient browsing) → if missing AND the user wants it: `npm i -g agent-browser && agent-browser install`. Skippable — not required for the base.
+Install ONLY what Phase 1 found missing. Ask before each global change. `/plugin …` commands must run inside an active Claude Code session at the `/` prompt — if you're running shell, print them for the user to paste.
 
-If any global install is blocked (approval/classifier/permissions), do NOT stall — print the exact manual command, mark it ⏸️ pending, and continue. A blocked optional tool never blocks scaffolding.
+- **Superpowers** (Claude Code plugin) — `writing-plans` and `requesting-code-review` are REQUIRED; without them `brainstorming` dead-ends. If FULL, skip. If missing or PARTIAL:
+  ```
+  /plugin marketplace add obra/superpowers-marketplace
+  /plugin install superpowers@superpowers-marketplace
+  ```
+  Skills bundle inside the plugin — no separate per-skill install.
 
-Report `✅ installed` / `⏭️ skipped (present)` per item.
+- **andrej-karpathy-skills** (Claude Code plugin) — supplies engineering principles globally; do NOT hand-write them into any CLAUDE.md:
+  ```
+  /plugin marketplace add forrestchang/andrej-karpathy-skills
+  /plugin install andrej-karpathy-skills@karpathy-skills
+  ```
+
+- **Matt Pocock skills** (npx `skills` CLI — NOT a Claude Code plugin) — install missing ones from: `improve-codebase-architecture`, `git-guardrails-claude-code` (real name; older docs say "git-guardrails"), `setup-pre-commit`. Per-skill (deterministic, no TUI):
+  ```
+  npx skills@latest add mattpocock/skills/improve-codebase-architecture
+  npx skills@latest add mattpocock/skills/git-guardrails-claude-code
+  npx skills@latest add mattpocock/skills/setup-pre-commit
+  ```
+  Or the interactive picker: `npx skills@latest add mattpocock/skills`.
+
+- **claude-mem** (Claude Code plugin; cross-session memory) — OPT-IN. SKIP entirely if Phase 1 detected another memory tool (agentmemory / mem0 / custom). Otherwise ASK first: "Install claude-mem for cross-session memory? (Recommended — skip if you already use another memory tool such as agentmemory or mem0.)" On yes:
+  ```
+  /plugin marketplace add thedotmack/claude-mem
+  /plugin install claude-mem
+  ```
+  Then restart Claude Code and verify with `claude-mem status`.
+
+- **code-review-graph** (Python; pipx; requires Python 3.10+):
+  ```
+  pipx install code-review-graph
+  code-review-graph install --platform claude-code
+  code-review-graph build
+  ```
+  `install --platform claude-code` registers BOTH the MCP server AND auto-update hooks — confirm with `code-review-graph status`. Do NOT enable watch mode — hooks are event-driven and cost nothing when idle. Optional: install `uv` so the generated MCP config uses `uvx`.
+
+- **rtk** (optional, command-output compression) — if `rtk gain` failed in Phase 1 AND user wants it (skip if RTK.md already in `~/.claude`). Install (idempotent — brew/curl no-op if present):
+  ```
+  brew install rtk-ai/tap/rtk
+  rtk init -g
+  ```
+  rtk is NOT in homebrew-core; the `rtk-ai/tap/` prefix is required (taps + installs in one step). If brew fails (formula checksum, no brew): `curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh`. If cargo is the only option: `cargo install --git https://github.com/rtk-ai/rtk` — NEVER bare `cargo install rtk` (collides with unrelated "Rust Type Kit" crate). Restart Claude Code, then verify with `rtk gain` (must show token savings, not "command not found"). If `rtk gain` fails after install you got the wrong package — reinstall from git.
+
+- **agent-browser** (optional, token-efficient browser) — if missing AND user wants it:
+  ```
+  npm i -g agent-browser
+  agent-browser install
+  ```
+  `agent-browser install` downloads Chrome for Testing (first run only). Linux: use `agent-browser install --with-deps`. Optional Claude Code skill stub: `npx skills add vercel-labs/agent-browser`. Skippable — not required for the base.
+
+If any global install is blocked (approval/classifier/permissions) or fails, do NOT stall — print the exact manual command, mark it ⏸️ pending, and continue. A blocked optional tool never blocks scaffolding.
+
+Report `✅ installed` / `⏭️ skipped (present)` / `⏸️ pending (manual)` per item. Recommend a Claude Code restart after any plugin install so new skills/hooks surface.
 </phase_3_install>
 
 <phase_4_scaffold>
@@ -123,7 +168,7 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 
 ## Tool usage
 - ALWAYS use code-review-graph MCP tools BEFORE Grep/Glob/Read. The graph is faster, cheaper, and gives structural context (callers, dependents, test coverage).
-- claude-mem holds session history — query it, do NOT re-paste prior decisions.
+- {Memory line — fill from Phase 3: if claude-mem chosen → "claude-mem holds session history — query it, do NOT re-paste prior decisions." If another memory tool detected (agentmemory/mem0/etc.) → swap "claude-mem" for that tool's name. If memory was skipped → OMIT this line.}
 - Fetching: WebFetch for public pages; if agent-browser is installed, use it for dynamic or auth-walled pages (accessibility tree with element refs — far cheaper than screenshots). If a fetch/parse pattern recurs, wrap it as a named tool under "## Dedicated tools".
 - PDFs: use `pdftotext`, not the Read tool (Read loads PDFs as images = expensive). Read a PDF only when the user explicitly asks to analyze its images/charts.
 
@@ -192,7 +237,7 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 
 <phase_5_verify>
 - Run `code-review-graph status` → confirm graph built AND auto-update hooks registered.
-- Confirm claude-mem is active for this project.
+- Memory (conditional): if claude-mem was installed → confirm active for this project (`claude-mem status`). If another memory tool was detected in Phase 1 → confirm it's active instead. If memory was skipped → note "memory tool not configured".
 - Confirm Superpowers chain is complete (at least brainstorming + writing-plans present).
 - Confirm andrej-karpathy-skills is active — engineering principles depend on it (they were intentionally NOT written into CLAUDE.md).
 - If a design system was chosen: confirm `DESIGN.md` exists at the FE root and the FE CLAUDE.md points to it.
