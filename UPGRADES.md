@@ -88,3 +88,16 @@ Cũ: `/basecamp` + `/kickcamp` tối ưu greenfield. Giờ adopt audit code sẵ
 **Nếu thử:** bật env flag, dùng worktree cô lập, pair **cmux `claude-teams`** để visualize + notification, watch token sát. PmCamp có thể mở rộng để spawn teammate cho ca song song — nhưng là upgrade riêng, giữ sub-agent làm mặc định.
 
 **Tóm:** Teams = đổi token + phức tạp lấy tốc độ song song. Đáng khi việc thực sự song song; còn lại sub-agent thắng chi phí + kiểm soát.
+
+## 8. Node.js backend + MongoDB + module-based scaffolds ✅ v1.1.0
+
+Added Node backends (**NestJS ★ / Fastify / Express**) + **MongoDB** alongside the existing Python (FastAPI/Django) + SQL stacks.
+
+- **Phase 2 menu:** backend split into Python (A FastAPI ★, B Django) and Node (C NestJS ★, D Fastify, E Express); DB gains MongoDB; guard (FE & BE not both None) kept.
+- **Scaffolds via official generators, then overlaid** with our module-based structure — NestJS `nest new`, Vite, `create-next-app`, Fastify CLI; FastAPI/Express scaffolded manually (no standard generator). Idempotent + graceful-degrade (blocked generator → manual command, ⏸️ pending, continue).
+- **Module-based layout:** `src/modules/<domain>/` layered route/controller → service → repository; `<domain>.` prefix on Node files, no prefix on Python (FastAPI idiom — `router.py` is the handler, `dto.py` validates). One runnable `health` module ships so the app runs immediately.
+- **DB-aware schema location:** shared `src/schemas/` is **MongoDB only** (Mongoose `*.schema.ts` / Beanie `*.py`); SQL ORMs keep their own convention (Prisma `schema.prisma`, Drizzle `src/db/schema.ts`, SQLModel/SQLAlchemy models module). NestJS registers schemas per module via `MongooseModule.forFeature`.
+- **Conventions shipped as bundled rules** — `rules/{node,python,mongodb}.md`, copied into the project's `.claude/rules/` during Phase 4 (node.md if Node BE, python.md if Python BE, mongodb.md if DB = MongoDB), same pattern as PmCamp.md.
+- **ODM:** Mongoose (Node) / Beanie (Python). **DB local dev:** `.env.example` `MONGODB_URI` + connection/init module wired into startup + `docker-compose.yml` with local Mongo.
+- **Tooling:** Node = TS + pnpm + Biome + Vitest; Python = uv + Ruff + mypy + pytest. **Biome decision:** NestJS keeps its shipped ESLint + Prettier (Biome's `useImportType` rewrites DI value-imports to `import type` and breaks decorator metadata at runtime); Biome is the default for Fastify/Express.
+- **Docs:** multi-level `backend/CLAUDE.md` referencing `.claude/rules/<stack>.md`; CI gains one job per chosen stack.

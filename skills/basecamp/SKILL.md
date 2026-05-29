@@ -46,18 +46,29 @@ Output a short audit table. Install nothing yet.
 
 Ask 1 & 2 first — they decide which follow-ups apply:
 1. Frontend   A) ★ React+Vite (internal, no SEO)   B) React+Next.js (public/SEO)   C) None
-2. Backend    A) ★ FastAPI   B) Django   C) None (frontend-only)
-GUARD: both = None is invalid — a project needs at least one stack. Re-ask if so.
+2. Backend
+   - Python:  A) ★ FastAPI   B) Django
+   - Node:    C) ★ NestJS   D) Fastify   E) Express
+   - F) None (frontend-only)
+   FastAPI = overall default; NestJS = starred Node option. The choice fixes the backend LANGUAGE (Python vs Node) — later questions adapt.
+GUARD: Frontend = None AND Backend = None is invalid — a project needs at least one stack. Re-ask if so.
 
 Conditional follow-ups — ask ONLY the relevant ones:
-3. Database (only if Backend ≠ None)   A) ★ PostgreSQL   B) MySQL   C) SQLite   D) Other
-4. JS package manager (only if Frontend ≠ None)   A) ★ pnpm   B) npm   C) yarn
-5. Python tool (only if Backend ≠ None)   A) ★ uv   B) poetry   C) pip
+3. Database (only if Backend ≠ None)   A) ★ PostgreSQL   B) MySQL   C) SQLite   D) MongoDB   E) Other
+   ODM/ORM is auto-resolved by language + DB (do not ask):
+   - MongoDB → Mongoose (Node) / Beanie (Python)
+   - SQL (Postgres/MySQL/SQLite) → Prisma ★ or Drizzle (Node) / SQLModel ★ or SQLAlchemy (Python)
+4. JS package manager (only if Frontend ≠ None OR Backend is Node)   A) ★ pnpm   B) npm   C) yarn
+5. Python tool (only if Backend is Python)   A) ★ uv   B) poetry   C) pip
 6. Quality + CI   A) ★ Default + GitHub Actions CI   B) Default, no CI   C) Custom
 7. Design system (only if Frontend ≠ None)   A) ★ None   B) Apple   C) Coinbase   D) Notion   E) Claude   F) Clay
 
 Layout is AUTO-resolved (do not ask): both stacks → monorepo (`backend/` + `frontend/`); single stack → single-folder repo (code at root or `src/`, NO empty sibling folder).
-Default quality = ruff + pytest (if BE), eslint + prettier + vitest (if FE), Husky + lint-staged for whichever stacks exist.
+Default quality (per language present):
+- Python BE → Ruff + mypy(strict) + pytest.
+- Node BE → Biome + tsc + Vitest — EXCEPT NestJS, which keeps its shipped ESLint + Prettier (Biome's `useImportType` breaks NestJS DI; see Phase 4).
+- FE → eslint + prettier + vitest.
+- Husky + lint-staged for whichever stacks exist.
 
 Lock answers, echo the final stack, then proceed.
 </phase_2_interview>
@@ -115,6 +126,12 @@ Install ONLY what Phase 1 found missing. Ask before each global change. `/plugin
   ```
   `agent-browser install` downloads Chrome for Testing (first run only). Linux: use `agent-browser install --with-deps`. Optional Claude Code skill stub: `npx skills add vercel-labs/agent-browser`. Skippable — not required for the base.
 
+- **caveman** (optional, on-demand output compression) — if Phase 1 found it missing AND user wants it. Install **skill/command ONLY — never the always-on hook.** caveman's default install wires a SessionStart hook + `caveman-shrink` MCP middleware that compress ALL output from message one, which would garble PmCamp's user-facing messages and fight its clear-communication persona. Use `--minimal` (skips hooks, init rules, AND MCP-shrink) so `/caveman` is available on demand but nothing auto-compresses:
+  ```
+  curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.sh | bash -s -- --minimal --only claude
+  ```
+  (`--minimal` verified to set `withHooks=false`, `withInit=false`, `withMcpShrink=false`.) After install, mention in the project CLAUDE.md that caveman is **on-demand only** (`/caveman [lite|full|ultra]`) — NOT always-on. If the user explicitly wants always-on anyway, that's their call: drop `--minimal` — but warn it will compress the PM's messages too.
+
 If any global install is blocked (approval/classifier/permissions) or fails, do NOT stall — print the exact manual command, mark it ⏸️ pending, and continue. A blocked optional tool never blocks scaffolding.
 
 Report `✅ installed` / `⏭️ skipped (present)` / `⏸️ pending (manual)` per item. Recommend a Claude Code restart after any plugin install so new skills/hooks surface.
@@ -138,15 +155,61 @@ Files to create — ADAPT to the stacks chosen in Phase 2. Do NOT scaffold a fol
   - Full-stack (BE + FE) → root `CLAUDE.md` (lean, template below) + `backend/CLAUDE.md` + `frontend/CLAUDE.md` (sub-files load on demand; keep lean, no duplication of root).
   - Single-stack → ONE root `CLAUDE.md` only (no split — nothing to scope).
 - `.claude/PmCamp.md` — the PmCamp persona (copy the bundled canonical file — see below); root CLAUDE.md imports it via `@.claude/PmCamp.md`.
-- `.claude/rules/` — path-scoped rule files (`paths:` frontmatter) so a rule loads ONLY when Claude works on matching files. Seed one example. (Most useful in large / full-stack repos.)
-- Folders: `docs/`, `docs/requirements/` (drop requirement docs here), `docs/adr/`. Add `backend/` only if BE ≠ None, `frontend/` only if FE ≠ None. Single-stack → code at root or `src/`.
+- `.claude/rules/` — rule files WITHOUT `paths:` frontmatter auto-load at launch (global), so they are reliably present when CREATING and editing files — first module / greenfield included. This is the only create-reliable mechanism: `paths:` auto-scope injects on Read not Write (#23478), and subdirectory `CLAUDE.md` (e.g. `backend/CLAUDE.md`) loads only on demand, is unreliable in practice (#24987, #2571), and does NOT survive compaction (only root survives) — so do NOT route conventions through it. COPY the relevant bundled rule file(s) from `${CLAUDE_PLUGIN_ROOT}/rules/` into the PROJECT-ROOT `.claude/rules/` (NOT `backend/.claude/rules/`) — same pattern as PmCamp.md — based on the locked stack: `node.md` if the backend is Node, `python.md` if the backend is Python, `mongodb.md` if DB = MongoDB. If `${CLAUDE_PLUGIN_ROOT}` can't be resolved, warn and skip (don't hand-write them).
+- Folders: `docs/`, `docs/requirements/` (drop requirement docs here), `docs/adr/`. Add `backend/` only if BE ≠ None, `frontend/` only if FE ≠ None. Single-stack → code at root or `src/`. Backend internals are scaffolded module-based — see **Backend scaffold** below.
 - `docs/adr/0000-template.md` — ADR template: Context / Decision / Consequences.
-- Quality config for the stacks that exist (per Phase 2 choice): ruff + pytest (if BE), eslint + prettier + vitest (if FE). Husky + lint-staged via the setup-pre-commit skill, scoped to the file types present.
-- `.env.example` — documented placeholder keys (no real secrets).
+- Quality config for the stacks that exist (per Phase 2 choice): Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, **except NestJS** which keeps its shipped ESLint + Prettier (Biome's `useImportType` rewrites DI value-imports to `import type` and breaks NestJS metadata at runtime — state this decision in the diff summary); FE → eslint + prettier + vitest. Husky + lint-staged via the setup-pre-commit skill, scoped to the file types present.
+- `.env.example` — documented placeholder keys (no real secrets). MongoDB → include `MONGODB_URI` + DB name; SQL → the chosen DB's connection URL.
 - `.gitignore` — claude-mem store, code-review-graph DB, `node_modules/`, `__pycache__/`, `.env`, build output.
-- If CI = Yes: `.github/workflows/ci.yml` with one job per EXISTING stack only.
+- DB local dev (only if Backend ≠ None): `docker-compose.yml` with the chosen DB service (MongoDB for Mongo, else the SQL engine) for local dev. See **DB connection** below.
+- If CI = Yes: `.github/workflows/ci.yml` with one job per EXISTING stack only:
+  - Node BE → `pnpm install` → `biome check` (NestJS: `eslint`) → `tsc --noEmit` → `vitest run` → `build`.
+  - Python BE → `uv sync` → `ruff check` → `mypy` → `pytest`.
+  - FE → its eslint + vitest + build.
 - Design system (only if Frontend ≠ None AND choice ≠ None): fetch `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/<site>/DESIGN.md` (site = apple | coinbase | notion | claude | clay) and save it as `DESIGN.md` at the FE root — `frontend/DESIGN.md` for full-stack, project-root `DESIGN.md` for FE-only. Then add one line to the FE CLAUDE.md (frontend/CLAUDE.md, or root for FE-only): "When building UI, follow DESIGN.md." If the fetch fails (network/path), warn the user and fall back to None — do NOT block scaffolding.
 - `git init` if not already a repo.
+
+**Backend scaffold (generator → overlay). Do NOT hand-write framework boilerplate — run the official generator, then OVERLAY our module structure + rules + tooling + CLAUDE.md.** Idempotent + graceful-degrade: if a generator is blocked (approval/network/classifier), print the exact manual command, mark ⏸️ pending, and continue. Run only the generator for the LOCKED backend choice.
+
+Generators (verified):
+- **NestJS** (default Node): `npx @nestjs/cli new backend --package-manager pnpm --skip-git --strict` (suppresses the PM prompt; `--skip-git` since the repo already has git). Generates `src/main.ts`, `src/app.module.ts`, `app.controller.ts`, `app.service.ts` + Nest's ESLint/Prettier.
+- **Fastify**: `npm i -g fastify-cli && fastify generate backend --lang=ts` (TypeScript template; bare `npm create fastify` is JS-first).
+- **Express**: no standard generator → scaffold manually per the structure below.
+- **FastAPI**: no official generator → scaffold manually per the structure below.
+- **Django**: `django-admin startproject` (then keep Django's own app layout — do NOT force the module structure below; Django apps are its idiom).
+- Frontend (reference): Vite `pnpm create vite frontend --template react-ts`; Next `npx create-next-app@latest frontend --ts --app --use-pnpm --yes`.
+
+After the generator, reorganize/overlay to module-based structure (`<domain>.` prefix on Node files; NO prefix on Python). Full directory specs live in the bundled rules — `rules/node.md`, `rules/python.md`, `rules/mongodb.md` (copied into `.claude/rules/` above). Summary:
+- **NestJS**: `src/{main.ts, app.module.ts}`, `src/modules/<domain>/{<domain>.module.ts, .controller.ts, .service.ts, .repository.ts, dto/}`, `src/{common,config,db}/`. MongoDB: shared `src/schemas/<domain>.schema.ts` (`@Schema`), registered per module via `MongooseModule.forFeature([{ name, schema }])`; root `MongooseModule.forRootAsync` in `app.module.ts`.
+- **Fastify/Express**: `src/{index.ts, app.ts}`, `src/modules/<domain>/{<domain>.routes.ts, .controller.ts, .service.ts, .repository.ts, .validation.ts (zod/JSON schema), .middleware.ts?}`, `src/{middlewares,config,lib,db}/`. MongoDB: shared `src/schemas/<domain>.schema.ts` (Mongoose schema+model).
+- **FastAPI**: `src/{main.py, db.py}`, `src/modules/<domain>/{router.py, service.py, repository.py, dto.py, dependencies.py, exceptions.py?}`, `src/{core,common}/`, `tests/` (mirror src), `pyproject.toml`. MongoDB: shared `src/schemas/<domain>.py` (Beanie `Document`).
+
+**Schema location is DB-AWARE** (important): the centralized `src/schemas/` convention applies to **MongoDB ONLY**. For SQL ORMs follow the ORM's own convention — Prisma `prisma/schema.prisma`, Drizzle `src/db/schema.ts`, SQLModel/SQLAlchemy the models module. Do NOT force `src/schemas/` for SQL.
+
+**Node tooling overlay**: TypeScript strict, pnpm, Vitest, Pino logging; scripts `dev`/`build`/`typecheck`/`test`/`lint`; validate env at startup; centralized error handling; no hardcoded secrets. Linter: **Biome** for Fastify/Express (`npm i -D @biomejs/biome && npx @biomejs/biome init`); **NestJS keeps its shipped ESLint + Prettier** (Biome's `useImportType` breaks DI — see Quality note).
+**Python tooling overlay**: uv + Ruff + mypy(strict) + pytest, single `pyproject.toml`, type hints, async.
+
+**Sample `health` module** (always — so the app runs immediately and demonstrates the structure): one `health` module exposing `GET /health` following the chosen framework's conventions (NestJS controller, Fastify/Express route, FastAPI router). `modules/` otherwise starts EMPTY — feature modules arrive via `/kickcamp`.
+
+**DB connection + env (Backend ≠ None):**
+- MongoDB: connection/init module wired into startup — Mongoose `connect` (or `MongooseModule.forRootAsync`) in `db/`; Beanie `init_beanie(database, document_models=[...])` in `db.py` (await in FastAPI lifespan). `.env.example` with `MONGODB_URI` + DB name. `docker-compose.yml` with a local `mongo` service.
+- SQL: analogous connection setup for the chosen ORM/DB + the DB's connection URL in `.env.example` + that engine in `docker-compose.yml`.
+
+**`backend/CLAUDE.md`** (full-stack split, or part of root CLAUDE.md if backend-only) — concise: state the backend stack + tooling, point to `src/modules/` structure, and reference the rules:
+```markdown
+# Backend — {NestJS|Fastify|Express|FastAPI} ({Node|Python})
+
+## Stack
+- Framework: {…} · ODM/ORM: {Mongoose|Beanie|Prisma|Drizzle|SQLModel|SQLAlchemy} · DB: {…}
+- Tooling: {pnpm + Biome/ESLint + Vitest + tsc | uv + Ruff + mypy + pytest}
+
+## Structure
+- Module-based: `src/modules/<domain>/` — layered route/controller → service → repository.
+- Schemas: {`src/schemas/` (MongoDB) | ORM convention}. Validate at the edge ({dto/ class-validator | <domain>.validation.ts zod | dto.py Pydantic}).
+
+## Rules
+Conventions live in `.claude/rules/` (auto-loaded at launch).
+```
 
 Do NOT create an output-style file — the PmCamp persona lives in `.claude/PmCamp.md` (imported by CLAUDE.md) to avoid clashing with the caveman compression skill.
 
@@ -155,10 +218,10 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 # {Project Name}
 
 ## Stack
-- Backend: {FastAPI|Django} (Python) · {database}      ← omit if no backend
+- Backend: {FastAPI|Django (Python) | NestJS|Fastify|Express (Node)} · {database} · {ODM/ORM}   ← omit if no backend
 - Frontend: React + {Vite|Next.js} {+ state mgmt, e.g. Redux Toolkit, if used}   ← omit if no frontend
-- Tooling: {pnpm|npm|yarn} · {uv|poetry|pip}            ← keep only what exists
-- Quality: {ruff+pytest} · {eslint+prettier+vitest}    ← keep only what exists
+- Tooling: {pnpm|npm|yarn} · {uv|poetry|pip if Python BE}            ← keep only what exists
+- Quality: {ruff+mypy+pytest (Python) | biome+tsc+vitest, or eslint+prettier for NestJS (Node)} · {eslint+prettier+vitest (FE)}   ← keep only what exists
 
 ## Model routing (edit freely as needs change)
 - Default: Sonnet — build, test, refactor, scoped research, code exploration, in-scope synthesis
@@ -171,6 +234,7 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - {Memory line — fill from Phase 3: if claude-mem chosen → "claude-mem holds session history — query it, do NOT re-paste prior decisions." If another memory tool detected (agentmemory/mem0/etc.) → swap "claude-mem" for that tool's name. If memory was skipped → OMIT this line.}
 - Fetching: WebFetch for public pages; if agent-browser is installed, use it for dynamic or auth-walled pages (accessibility tree with element refs — far cheaper than screenshots). If a fetch/parse pattern recurs, wrap it as a named tool under "## Dedicated tools".
 - PDFs: use `pdftotext`, not the Read tool (Read loads PDFs as images = expensive). Read a PDF only when the user explicitly asks to analyze its images/charts.
+- {caveman line — ONLY if caveman was installed in Phase 3: "caveman is on-demand ONLY — invoke `/caveman [lite|full|ultra]` when you want compressed output; it is NOT always-on and must not compress PmCamp's user-facing messages." OMIT this line if caveman wasn't installed.}
 
 ## Dedicated tools
 - {Project-specific fetch/parse tools go here, each linking to its skill or script. Orchestration lives in those files, not in this list.}
@@ -238,6 +302,7 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 <phase_5_verify>
 - Run `code-review-graph status` → confirm graph built AND auto-update hooks registered.
 - Memory (conditional): if claude-mem was installed → confirm active for this project (`claude-mem status`). If another memory tool was detected in Phase 1 → confirm it's active instead. If memory was skipped → note "memory tool not configured".
+- If a backend was scaffolded: confirm it RUNS — start it and hit `GET /health` (or run the generator's smoke test); confirm the module-based layout exists (`src/modules/health/`, schemas in the DB-aware location), the connection/init module is wired, and the relevant rule file(s) were copied into `.claude/rules/` (node.md / python.md / mongodb.md). For MongoDB confirm `docker-compose.yml` + `MONGODB_URI` in `.env.example`.
 - Confirm Superpowers chain is complete (at least brainstorming + writing-plans present).
 - Confirm andrej-karpathy-skills is active — engineering principles depend on it (they were intentionally NOT written into CLAUDE.md).
 - If a design system was chosen: confirm `DESIGN.md` exists at the FE root and the FE CLAUDE.md points to it.

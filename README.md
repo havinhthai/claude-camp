@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.0.0-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.1.0-3fb950.svg)](#)
 
 </div>
 
@@ -40,6 +40,7 @@ Two commands run the whole loop:
 - 🧭 **One point of contact.** You talk to PmCamp; it orchestrates everything and pulls you in only for gaps, plan sign-off, real decisions, and verified completion.
 - 🔍 **Verification-first.** No milestone is "done" on a sub-agent's word — PmCamp checks tests, real commits, and acceptance criteria, and reports with evidence.
 - 🌱 **Greenfield *or* brownfield.** `/basecamp` scaffolds new projects and safely **adopts** existing ones (detect stack, map the code, never overwrite).
+- 🧱 **Python *and* Node backends.** FastAPI/Django (Python) or NestJS ★/Fastify/Express (Node), with PostgreSQL/MySQL/SQLite **or MongoDB**. Scaffolds run the official generator, then overlay a module-based structure shipped as bundled rules.
 - 🪙 **Token-efficient by design.** Graph-before-grep, scoped reads, sub-agent isolation, a snapshot `STATUS.md`, and optional command/output compression.
 - 🧩 **Composes, doesn't compete.** Builds on Superpowers (workflow), Karpathy's principles, claude-mem, and code-review-graph instead of re-implementing them.
 
@@ -99,13 +100,13 @@ You only step in at four moments: a requirement gap, milestone sign-off, a real 
 
 On first run, `/basecamp` audits and installs (only what's missing) a curated global toolkit — you don't install these by hand:
 
-- **[Superpowers](https://github.com/obra/superpowers)** — the brainstorm → plan → TDD → review workflow
-- **andrej-karpathy-skills** — engineering principles (Simplicity First, Surgical Changes, …)
-- **claude-mem** — cross-session memory
-- **code-review-graph** — an AST map of your code (query it instead of reading the whole repo)
-- **caveman** — compresses Claude's own output
-- **Matt Pocock skills** — `improve-codebase-architecture`, `git-guardrails`, `setup-pre-commit`
-- **Optional, token-saving:** `rtk` (compresses command output) and `agent-browser` (cheap browser for dynamic/auth pages)
+- **[Superpowers](https://github.com/obra/superpowers-marketplace)** — the brainstorm → plan → TDD → review workflow
+- **[andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills)** — engineering principles (Simplicity First, Surgical Changes, …)
+- **[claude-mem](https://github.com/thedotmack/claude-mem)** — cross-session memory
+- **[code-review-graph](https://github.com/tirth8205/code-review-graph)** — an AST map of your code (query it instead of reading the whole repo)
+- **[caveman](https://github.com/JuliusBrussee/caveman)** — compresses Claude's own output (installed **on-demand only** via `/caveman` — never the always-on hook, so it won't garble the PM's messages)
+- **[Matt Pocock skills](https://github.com/mattpocock/skills)** — `improve-codebase-architecture`, `git-guardrails`, `setup-pre-commit`
+- **Optional, token-saving:** [`rtk`](https://github.com/rtk-ai/rtk) (compresses command output) and [`agent-browser`](https://github.com/vercel-labs/agent-browser) (cheap browser for dynamic/auth pages)
 
 If an install is blocked by a permission or classifier prompt, `/basecamp` prints the manual command and continues instead of stalling. Re-runs are idempotent — anything already present is skipped.
 
@@ -138,6 +139,10 @@ claude-camp/
 │   │   └── SKILL.md         # /basecamp
 │   └── kickcamp/
 │       └── SKILL.md         # /kickcamp
+├── rules/                   # bundled convention rules (copied into .claude/rules/)
+│   ├── node.md              # Node backend (NestJS/Fastify/Express)
+│   ├── python.md            # Python backend (FastAPI)
+│   └── mongodb.md           # MongoDB data modeling (Mongoose/Beanie)
 ├── PmCamp.md                # PM persona (canonical)
 ├── UPGRADES.md              # roadmap / backlog
 ├── LICENSE                  # MIT
