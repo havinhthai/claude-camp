@@ -133,11 +133,14 @@ claude-camp/
 ├── .claude-plugin/
 │   ├── plugin.json          # plugin manifest ("camp")
 │   └── marketplace.json     # marketplace catalog ("claude-camp")
-├── commands/
-│   ├── basecamp.md          # /basecamp
-│   └── kickcamp.md          # /kickcamp
+├── skills/
+│   ├── basecamp/
+│   │   └── SKILL.md         # /basecamp
+│   └── kickcamp/
+│       └── SKILL.md         # /kickcamp
 ├── PmCamp.md                # PM persona (canonical)
 ├── UPGRADES.md              # roadmap / backlog
+├── LICENSE                  # MIT
 └── README.md
 ```
 
