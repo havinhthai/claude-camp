@@ -101,3 +101,15 @@ Added Node backends (**NestJS ★ / Fastify / Express**) + **MongoDB** alongside
 - **ODM:** Mongoose (Node) / Beanie (Python). **DB local dev:** `.env.example` `MONGODB_URI` + connection/init module wired into startup + `docker-compose.yml` with local Mongo.
 - **Tooling:** Node = TS + pnpm + Biome + Vitest; Python = uv + Ruff + mypy + pytest. **Biome decision:** NestJS keeps its shipped ESLint + Prettier (Biome's `useImportType` rewrites DI value-imports to `import type` and breaks decorator metadata at runtime); Biome is the default for Fastify/Express.
 - **Docs:** multi-level `backend/CLAUDE.md` referencing `.claude/rules/<stack>.md`; CI gains one job per chosen stack.
+
+## 9. Interactive stack picker ✅ v1.1.1
+
+Phase 2 now uses Claude Code's **AskUserQuestion** tool for a clickable, conditional stack picker instead of typed letter codes.
+
+- **Entry:** one question — *Use default* / *Customize step-by-step* / *Describe my project*.
+- **Chained dependent popups:** each step's options depend on prior answers (Backend Python/Node → framework follow-up; DB only if backend ≠ None; Python tool only if Python backend; design system only if frontend ≠ None).
+- **Multi-select Change:** confirmation offers *Yes, build* / *Change something* → multi-select picker re-asks only the chosen fields, then re-confirms.
+- **Split design-system list:** 6 choices exceed the 4-option cap → *None* / *Choose one* → Apple / Coinbase / Notion / *More…* → Claude / Clay.
+- **Argument + letter-code bypass:** `/basecamp vite nestjs mongo` or legacy `1A 2C 3D` skip all popups → straight to confirmation; ADOPT mode shows the detected stack in one confirm question.
+- **Typed-flow fallback:** if AskUserQuestion is unavailable, the same conditional structure runs as a typed conversational flow.
+- **Unchanged:** available options, ★ defaults, auto-resolved layout/ORM/quality, and the entire scaffold (Phases 3-5).

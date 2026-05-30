@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.1.0-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.1.1-3fb950.svg)](#)
 
 </div>
 

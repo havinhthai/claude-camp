@@ -40,35 +40,38 @@ Output a short audit table. Install nothing yet.
 </phase_1_audit>
 
 <phase_2_interview>
-**ADOPT mode:** do NOT show the menu. DETECT the stack from the code — manifests, dependencies, dirs (frontend/backend), lockfiles, test runner, linter. Echo the detected stack and ask ONLY to confirm or fill genuine ambiguities (never ask what the code already answers). Then skip to Phase 3. The rest of this phase is GREENFIELD only.
+Phase 2 picks the stack. Drive it with Claude Code's **AskUserQuestion** tool (clickable options) — NOT typed letter menus. Verified limits: ≤4 questions per call (batch only INDEPENDENT ones), 2–4 options per question, optional per-option `description` hint, `header` ≤12 chars, single- or multi-select, plus an auto-added "Other" that captures free text. The chain below is SEQUENTIAL (each step's options depend on prior answers) → make ONE call per step; only the Customize-tooling overrides may batch.
 
-**GREENFIELD mode:** Present the menu below (★ = default). User replies with letters (e.g. `1A 2A 3A 6A`) or `defaults`. No free-text unless they pick "Other". Never assume — wait for the reply, then echo the locked stack before scaffolding.
+FALLBACK: if AskUserQuestion is unavailable, run the SAME structure as a typed conversational flow — open with the recommended default stack, accept letter codes or free-text answers, ask the same conditional questions in prose. State which mode you used.
 
-Ask 1 & 2 first — they decide which follow-ups apply:
-1. Frontend   A) ★ React+Vite (internal, no SEO)   B) React+Next.js (public/SEO)   C) None
-2. Backend
-   - Python:  A) ★ FastAPI   B) Django
-   - Node:    C) ★ NestJS   D) Fastify   E) Express
-   - F) None (frontend-only)
-   FastAPI = overall default; NestJS = starred Node option. The choice fixes the backend LANGUAGE (Python vs Node) — later questions adapt.
-GUARD: Frontend = None AND Backend = None is invalid — a project needs at least one stack. Re-ask if so.
+Resolution rules (apply in EVERY mode — unchanged; only the UX changed):
+- Defaults (★): Frontend = React+Vite · Backend = FastAPI (overall default) / NestJS (the Node default) · Database = PostgreSQL · JS pkg = pnpm · Python tool = uv · CI = on · Design system = None.
+- GUARD: Frontend = None AND Backend = None is invalid — re-ask gracefully until ≥1 stack is chosen.
+- Auto-resolved, NEVER asked: Layout (both stacks → monorepo `backend/`+`frontend/`; single stack → root or `src/`, no empty sibling). ORM/ODM (MongoDB → Mongoose (Node) / Beanie (Python); SQL → Prisma ★ / Drizzle (Node) or SQLModel ★ / SQLAlchemy (Python)). Quality per language present: Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, EXCEPT NestJS which keeps its shipped ESLint + Prettier (Biome `useImportType` breaks NestJS DI; see Phase 4); FE → eslint + prettier + vitest; Husky + lint-staged for whichever stacks exist.
 
-Conditional follow-ups — ask ONLY the relevant ones:
-3. Database (only if Backend ≠ None)   A) ★ PostgreSQL   B) MySQL   C) SQLite   D) MongoDB   E) Other
-   ODM/ORM is auto-resolved by language + DB (do not ask):
-   - MongoDB → Mongoose (Node) / Beanie (Python)
-   - SQL (Postgres/MySQL/SQLite) → Prisma ★ or Drizzle (Node) / SQLModel ★ or SQLAlchemy (Python)
-4. JS package manager (only if Frontend ≠ None OR Backend is Node)   A) ★ pnpm   B) npm   C) yarn
-5. Python tool (only if Backend is Python)   A) ★ uv   B) poetry   C) pip
-6. Quality + CI   A) ★ Default + GitHub Actions CI   B) Default, no CI   C) Custom
-7. Design system (only if Frontend ≠ None)   A) ★ None   B) Apple   C) Coinbase   D) Notion   E) Claude   F) Clay
+**ADOPT mode:** do NOT run the picker. DETECT the stack from the code — manifests, deps, dirs (frontend/backend), lockfiles, test runner, linter. Then ONE AskUserQuestion (header "Detected"): "Detected: <stack summary>. Use as-is?" → "Use as-is" (★) · "Change". "Change" → the CHANGE picker below (re-ask only ambiguous fields). Never ask what the code already answers. Then skip to Phase 3. The rest of this phase is GREENFIELD only.
 
-Layout is AUTO-resolved (do not ask): both stacks → monorepo (`backend/` + `frontend/`); single stack → single-folder repo (code at root or `src/`, NO empty sibling folder).
-Default quality (per language present):
-- Python BE → Ruff + mypy(strict) + pytest.
-- Node BE → Biome + tsc + Vitest — EXCEPT NestJS, which keeps its shipped ESLint + Prettier (Biome's `useImportType` breaks NestJS DI; see Phase 4).
-- FE → eslint + prettier + vitest.
-- Husky + lint-staged for whichever stacks exist.
+**ARGUMENT bypass (greenfield):** if $ARGUMENTS already names a stack — framework words (`vite nestjs mongo`, `next fastapi postgres`) OR legacy letter codes (`1A 2C 3D`) — PARSE it, skip ALL pickers, jump straight to CONFIRMATION. Legacy letter map (keep parsing for backward-compat): 1 Frontend A=React+Vite B=Next.js C=None · 2 Backend A=FastAPI B=Django C=NestJS D=Fastify E=Express F=None · 3 DB A=PostgreSQL B=MySQL C=SQLite D=MongoDB E=Other · 4 JSpkg A=pnpm B=npm C=yarn · 5 Pytool A=uv B=poetry C=pip · 6 Quality A=Default+CI B=Default,noCI C=Custom · 7 Design A=None B=Apple C=Coinbase D=Notion E=Claude F=Clay. Free-typed natural-language answers are also accepted.
+
+**GREENFIELD interview (no stack in $ARGUMENTS):** mark the ★ default option first in each question; never assume — wait for the click; echo the locked stack before scaffolding.
+
+ENTRY — one AskUserQuestion (header "Stack") whose text states the recommended default ("React + Vite · FastAPI (Python) · PostgreSQL · pnpm + uv · GitHub Actions CI · no design system"):
+- "Use this default" → straight to CONFIRMATION.
+- "Customize step-by-step" → the CONDITIONAL CHAIN below.
+- "Describe my project" → free-text; recommend a fitting stack (SEO/public → Next.js; SPA/internal/extension or separate backend → Vite; relational → Postgres; document/flexible → MongoDB), STATE your assumptions, then CONFIRMATION.
+
+CONDITIONAL CHAIN (Customize) — one AskUserQuestion per step (clickable, never prose); never show an irrelevant question:
+1. Frontend (header "Frontend") — "React + Vite ★" (SPA / internal, no SEO) · "Next.js" (public / SEO / SSR) · "None".
+2. Backend (header "Backend") — "Python ★" (FastAPI / Django) · "Node" (NestJS / Fastify / Express) · "None". Then ONE framework follow-up:
+   - Node → "NestJS ★" · "Fastify" · "Express".
+   - Python → "FastAPI ★" · "Django".
+   GUARD CHECK here: if Frontend = None AND Backend = None, re-ask gracefully (re-open Frontend or Backend) until ≥1 stack chosen.
+3. Database (header "Database") — ONLY if Backend ≠ None: "PostgreSQL ★" · "MongoDB" · "SQLite" · "Other". The auto "Other" lets the user TYPE any DB (e.g. MySQL) — that typed value IS the free-text follow-up; no extra question.
+4. Tooling (header "Tooling") — "Defaults: pnpm + GitHub Actions CI{ + uv if Python}. Keep?" → "Keep ★" · "Customize". On Customize, batch the overrides in ONE AskUserQuestion call (independent): JS pkg ("pnpm ★" · "npm" · "yarn"), CI ("On ★" · "Off"), and — ONLY if Backend is Python — Python tool ("uv ★" · "poetry" · "pip").
+5. Design system — ONLY if Frontend ≠ None. Two steps (6 choices exceed the 4-option cap): first (header "Design") "Use a design system?" → "None ★" · "Choose one". If "Choose one": follow-up (header "Design sys") "Apple" · "Coinbase" · "Notion" · "More…"; "More…" → "Claude" · "Clay". Every step ≤4 options; all five systems reachable.
+
+CONFIRMATION — one AskUserQuestion (header "Confirm"): "Build <full stack summary>?" → "Yes, build ★" · "Change something". The summary names the RESOLVED tooling cleanly — show the actual linter for the chosen backend (NestJS → "ESLint + Prettier"; Fastify/Express → "Biome"; Python → "Ruff"), never an arrow like "Biome→ESLint".
+- "Change something" → AskUserQuestion (header "Change", multiSelect) listing the locked fields — "Frontend" · "Backend" · "Database" · "Tooling" · "Design" · "Start over" — then re-ask only the picked field(s) via the chain above (or restart) and RE-CONFIRM.
 
 Lock answers, echo the final stack, then proceed.
 </phase_2_interview>
