@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.1.1-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.0-3fb950.svg)](#)
 
 </div>
 
@@ -41,7 +41,8 @@ Two commands run the whole loop:
 - 🔍 **Verification-first.** No milestone is "done" on a sub-agent's word — PmCamp checks tests, real commits, and acceptance criteria, and reports with evidence.
 - 🌱 **Greenfield *or* brownfield.** `/basecamp` scaffolds new projects and safely **adopts** existing ones (detect stack, map the code, never overwrite).
 - 🧱 **Python *and* Node backends.** FastAPI/Django (Python) or NestJS ★/Fastify/Express (Node), with PostgreSQL/MySQL/SQLite **or MongoDB**. Scaffolds run the official generator, then overlay a module-based structure shipped as bundled rules.
-- 🪙 **Token-efficient by design.** Graph-before-grep, scoped reads, sub-agent isolation, a snapshot `STATUS.md`, and optional command/output compression.
+- 🎚️ **Model-tier enforcement.** Pick a tier once (Flagship / Premium ★ / Balanced / Economy) — `/basecamp` writes it to `.claude/settings.json`, setting the PM model and *forcing* every subagent's model via `CLAUDE_CODE_SUBAGENT_MODEL` (the only layer that catches them all). Escape hatches documented in `CLAUDE.md`.
+- 🪙 **Token-efficient by design.** Graph-before-grep, scoped reads, sub-agent isolation, session hygiene rules, a snapshot `STATUS.md`, and optional command/output compression.
 - 🧩 **Composes, doesn't compete.** Builds on Superpowers (workflow), Karpathy's principles, claude-mem, and code-review-graph instead of re-implementing them.
 
 ## Installation

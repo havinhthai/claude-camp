@@ -45,20 +45,20 @@ Phase 2 picks the stack. Drive it with Claude Code's **AskUserQuestion** tool (c
 FALLBACK: if AskUserQuestion is unavailable, run the SAME structure as a typed conversational flow — open with the recommended default stack, accept letter codes or free-text answers, ask the same conditional questions in prose. State which mode you used.
 
 Resolution rules (apply in EVERY mode — unchanged; only the UX changed):
-- Defaults (★): Frontend = React+Vite · Backend = FastAPI (overall default) / NestJS (the Node default) · Database = PostgreSQL · JS pkg = pnpm · Python tool = uv · CI = on · Design system = None.
+- Defaults (★): Frontend = React+Vite · Backend = FastAPI (overall default) / NestJS (the Node default) · Database = PostgreSQL · JS pkg = pnpm · Python tool = uv · CI = on · Design system = None · Model tier = Premium (opus PM · sonnet subagents).
 - GUARD: Frontend = None AND Backend = None is invalid — re-ask gracefully until ≥1 stack is chosen.
 - Auto-resolved, NEVER asked: Layout (both stacks → monorepo `backend/`+`frontend/`; single stack → root or `src/`, no empty sibling). ORM/ODM (MongoDB → Mongoose (Node) / Beanie (Python); SQL → Prisma ★ / Drizzle (Node) or SQLModel ★ / SQLAlchemy (Python)). Quality per language present: Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, EXCEPT NestJS which keeps its shipped ESLint + Prettier (Biome `useImportType` breaks NestJS DI; see Phase 4); FE → eslint + prettier + vitest; Husky + lint-staged for whichever stacks exist.
 
-**ADOPT mode:** do NOT run the picker. DETECT the stack from the code — manifests, deps, dirs (frontend/backend), lockfiles, test runner, linter. Then ONE AskUserQuestion (header "Detected"): "Detected: <stack summary>. Use as-is?" → "Use as-is" (★) · "Change". "Change" → the CHANGE picker below (re-ask only ambiguous fields). Never ask what the code already answers. Then skip to Phase 3. The rest of this phase is GREENFIELD only.
+**ADOPT mode:** do NOT run the picker. DETECT the stack from the code — manifests, deps, dirs (frontend/backend), lockfiles, test runner, linter. Model tier: read existing `.claude/settings.json` — if its `model` + `env.CLAUDE_CODE_SUBAGENT_MODEL` already map to a tier, report that tier; else default Premium. Then ONE AskUserQuestion (header "Detected"): "Detected: <stack summary + model tier>. Use as-is?" → "Use as-is" (★) · "Change". "Change" → the CHANGE picker below (re-ask only ambiguous fields; "Tooling / Model tier" covers the tier). Never ask what the code already answers. Then skip to Phase 3. The rest of this phase is GREENFIELD only.
 
-**ARGUMENT bypass (greenfield):** if $ARGUMENTS already names a stack — framework words (`vite nestjs mongo`, `next fastapi postgres`) OR legacy letter codes (`1A 2C 3D`) — PARSE it, skip ALL pickers, jump straight to CONFIRMATION. Legacy letter map (keep parsing for backward-compat): 1 Frontend A=React+Vite B=Next.js C=None · 2 Backend A=FastAPI B=Django C=NestJS D=Fastify E=Express F=None · 3 DB A=PostgreSQL B=MySQL C=SQLite D=MongoDB E=Other · 4 JSpkg A=pnpm B=npm C=yarn · 5 Pytool A=uv B=poetry C=pip · 6 Quality A=Default+CI B=Default,noCI C=Custom · 7 Design A=None B=Apple C=Coinbase D=Notion E=Claude F=Clay. Free-typed natural-language answers are also accepted.
+**ARGUMENT bypass (greenfield):** if $ARGUMENTS already names a stack — framework words (`vite nestjs mongo`, `next fastapi postgres`) OR legacy letter codes (`1A 2C 3D`) — PARSE it, skip ALL pickers, jump straight to CONFIRMATION. Legacy letter map (keep parsing for backward-compat): 1 Frontend A=React+Vite B=Next.js C=None · 2 Backend A=FastAPI B=Django C=NestJS D=Fastify E=Express F=None · 3 DB A=PostgreSQL B=MySQL C=SQLite D=MongoDB E=Other · 4 JSpkg A=pnpm B=npm C=yarn · 5 Pytool A=uv B=poetry C=pip · 6 Quality A=Default+CI B=Default,noCI C=Custom · 7 Design A=None B=Apple C=Coinbase D=Notion E=Claude F=Clay. Free-typed natural-language answers are also accepted. Model tier in arguments: accept the natural-language tier words `flagship` / `premium` / `balanced` / `economy` anywhere in $ARGUMENTS; if none given, tier defaults to Premium.
 
 **GREENFIELD interview (no stack in $ARGUMENTS):** mark the ★ default option first in each question; never assume — wait for the click; echo the locked stack before scaffolding.
 
-ENTRY — one AskUserQuestion (header "Stack") whose text states the recommended default ("React + Vite · FastAPI (Python) · PostgreSQL · pnpm + uv · GitHub Actions CI · no design system"):
-- "Use this default" → straight to CONFIRMATION.
+ENTRY — one AskUserQuestion (header "Stack") whose text states the recommended default ("React + Vite · FastAPI (Python) · PostgreSQL · pnpm + uv · GitHub Actions CI · no design system. Plus Premium model tier: opus PM · sonnet subagents."):
+- "Use this default" → straight to CONFIRMATION (locks Premium tier).
 - "Customize step-by-step" → the CONDITIONAL CHAIN below.
-- "Describe my project" → free-text; recommend a fitting stack (SEO/public → Next.js; SPA/internal/extension or separate backend → Vite; relational → Postgres; document/flexible → MongoDB), STATE your assumptions, then CONFIRMATION.
+- "Describe my project" → free-text; recommend a fitting stack (SEO/public → Next.js; SPA/internal/extension or separate backend → Vite; relational → Postgres; document/flexible → MongoDB) AND a model tier — Premium unless the user signals cost sensitivity (then Balanced or Economy) — STATE your assumptions, then CONFIRMATION.
 
 CONDITIONAL CHAIN (Customize) — one AskUserQuestion per step (clickable, never prose); never show an irrelevant question:
 1. Frontend (header "Frontend") — "React + Vite ★" (SPA / internal, no SEO) · "Next.js" (public / SEO / SSR) · "None".
@@ -68,10 +68,15 @@ CONDITIONAL CHAIN (Customize) — one AskUserQuestion per step (clickable, never
    GUARD CHECK here: if Frontend = None AND Backend = None, re-ask gracefully (re-open Frontend or Backend) until ≥1 stack chosen.
 3. Database (header "Database") — ONLY if Backend ≠ None: "PostgreSQL ★" · "MongoDB" · "SQLite" · "Other". The auto "Other" lets the user TYPE any DB (e.g. MySQL) — that typed value IS the free-text follow-up; no extra question.
 4. Tooling (header "Tooling") — "Defaults: pnpm + GitHub Actions CI{ + uv if Python}. Keep?" → "Keep ★" · "Customize". On Customize, batch the overrides in ONE AskUserQuestion call (independent): JS pkg ("pnpm ★" · "npm" · "yarn"), CI ("On ★" · "Off"), and — ONLY if Backend is Python — Python tool ("uv ★" · "poetry" · "pip").
-5. Design system — ONLY if Frontend ≠ None. Two steps (6 choices exceed the 4-option cap): first (header "Design") "Use a design system?" → "None ★" · "Choose one". If "Choose one": follow-up (header "Design sys") "Apple" · "Coinbase" · "Notion" · "More…"; "More…" → "Claude" · "Clay". Every step ≤4 options; all five systems reachable.
+5. Model tier (header "Model tier") — sets the PM model + the FORCED subagent model, written to `.claude/settings.json` in Phase 4. Exactly 4 options (fits the cap):
+   - "Premium ★" — opus PM · sonnet subagents (the default).
+   - "Flagship" — fable PM · sonnet subagents (description hint: max quality, burns the weekly fast quota).
+   - "Balanced" — sonnet PM · sonnet subagents.
+   - "Economy" — sonnet PM · haiku subagents (description hint: haiku is weak for real implementation work).
+6. Design system — ONLY if Frontend ≠ None. Two steps (6 choices exceed the 4-option cap): first (header "Design") "Use a design system?" → "None ★" · "Choose one". If "Choose one": follow-up (header "Design sys") "Apple" · "Coinbase" · "Notion" · "More…"; "More…" → "Claude" · "Clay". Every step ≤4 options; all five systems reachable.
 
-CONFIRMATION — one AskUserQuestion (header "Confirm"): "Build <full stack summary>?" → "Yes, build ★" · "Change something". The summary names the RESOLVED tooling cleanly — show the actual linter for the chosen backend (NestJS → "ESLint + Prettier"; Fastify/Express → "Biome"; Python → "Ruff"), never an arrow like "Biome→ESLint".
-- "Change something" → AskUserQuestion (header "Change", multiSelect) listing the locked fields — "Frontend" · "Backend" · "Database" · "Tooling" · "Design" · "Start over" — then re-ask only the picked field(s) via the chain above (or restart) and RE-CONFIRM.
+CONFIRMATION — one AskUserQuestion (header "Confirm"): "Build <full stack summary>?" → "Yes, build ★" · "Change something". The summary names the RESOLVED tooling cleanly — show the actual linter for the chosen backend (NestJS → "ESLint + Prettier"; Fastify/Express → "Biome"; Python → "Ruff"), never an arrow like "Biome→ESLint" — and END with the model tier, e.g. "· Premium tier (opus PM · sonnet subagents)".
+- "Change something" → AskUserQuestion (header "Change", multiSelect, ≤4 options to respect the cap) — "Stack (FE/BE/DB)" · "Tooling / Model tier" · "Design" · "Start over" — then re-ask only the picked group(s) via the chain above ("Stack" → steps 1–3 as relevant; "Tooling / Model tier" → steps 4–5; "Design" → step 6; or restart) and RE-CONFIRM.
 
 Lock answers, echo the final stack, then proceed.
 </phase_2_interview>
@@ -147,6 +152,7 @@ Report `✅ installed` / `⏭️ skipped (present)` / `⏸️ pending (manual)` 
 - Create `docs/`, `docs/requirements/`, `docs/adr/` + the ADR template ONLY if missing.
 - Reflect the project's EXISTING quality tooling (detected linter/test runner) in CLAUDE.md — do NOT impose a new one. If there is NO quality setup at all, OFFER to add it; don't force.
 - Do NOT create stack folders, configs, `.env.example`, or `.gitignore` that already exist. For `.gitignore`, APPEND missing entries (graph DB, claude-mem store) — don't rewrite.
+- Write/merge `.claude/settings.json` with the chosen model tier — SAME merge + conflict rules as the greenfield bullet below (preserve all other keys; differing `model` / `env.CLAUDE_CODE_SUBAGENT_MODEL` → AskUserQuestion "Keep existing" · "Apply <tier>"; matching values stay silent).
 - Seed `.claude/rules/` only if absent. Skip every greenfield step below that would re-create something the repo already has.
 Then go to Phase 5. The steps below are the GREENFIELD scaffold.
 
@@ -159,11 +165,18 @@ Files to create — ADAPT to the stacks chosen in Phase 2. Do NOT scaffold a fol
   - Single-stack → ONE root `CLAUDE.md` only (no split — nothing to scope).
 - `.claude/PmCamp.md` — the PmCamp persona (copy the bundled canonical file — see below); root CLAUDE.md imports it via `@.claude/PmCamp.md`.
 - `.claude/rules/` — rule files WITHOUT `paths:` frontmatter auto-load at launch (global), so they are reliably present when CREATING and editing files — first module / greenfield included. This is the only create-reliable mechanism: `paths:` auto-scope injects on Read not Write (#23478), and subdirectory `CLAUDE.md` (e.g. `backend/CLAUDE.md`) loads only on demand, is unreliable in practice (#24987, #2571), and does NOT survive compaction (only root survives) — so do NOT route conventions through it. COPY the relevant bundled rule file(s) from `${CLAUDE_PLUGIN_ROOT}/rules/` into the PROJECT-ROOT `.claude/rules/` (NOT `backend/.claude/rules/`) — same pattern as PmCamp.md — based on the locked stack: `node.md` if the backend is Node, `python.md` if the backend is Python, `mongodb.md` if DB = MongoDB. If `${CLAUDE_PLUGIN_ROOT}` can't be resolved, warn and skip (don't hand-write them).
+- `.claude/settings.json` — per-project, COMMITTED. Enforces the locked model tier (ALIAS-based model names, not full IDs):
+  - Flagship → `{"model": "fable", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"}}`
+  - Premium → `{"model": "opus", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"}}`
+  - Balanced → `{"model": "sonnet"}`
+  - Economy → `{"model": "sonnet", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "haiku"}}`
+  WHY the env var: subagents default to INHERITING the session model, and the verified resolution order is `CLAUDE_CODE_SUBAGENT_MODEL` env > per-invocation `model` param > agent-file frontmatter > inherit — so this env is the ONLY layer that reliably catches ALL subagents (including Superpowers' general-purpose dispatches). Accepted trade-off: it also flattens per-invocation tier selection; the escape hatches are documented in CLAUDE.md's Model routing section.
+  MERGE, never clobber: if `.claude/settings.json` exists, preserve every other key (permissions, hooks, other env vars). If `model` or `env.CLAUDE_CODE_SUBAGENT_MODEL` already exists with a DIFFERENT value, ask via AskUserQuestion (header "Settings"): "Keep existing" · "Apply <tier>". Values that already match are silent — idempotent re-runs change nothing.
 - Folders: `docs/`, `docs/requirements/` (drop requirement docs here), `docs/adr/`. Add `backend/` only if BE ≠ None, `frontend/` only if FE ≠ None. Single-stack → code at root or `src/`. Backend internals are scaffolded module-based — see **Backend scaffold** below.
 - `docs/adr/0000-template.md` — ADR template: Context / Decision / Consequences.
 - Quality config for the stacks that exist (per Phase 2 choice): Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, **except NestJS** which keeps its shipped ESLint + Prettier (Biome's `useImportType` rewrites DI value-imports to `import type` and breaks NestJS metadata at runtime — state this decision in the diff summary); FE → eslint + prettier + vitest. Husky + lint-staged via the setup-pre-commit skill, scoped to the file types present.
 - `.env.example` — documented placeholder keys (no real secrets). MongoDB → include `MONGODB_URI` + DB name; SQL → the chosen DB's connection URL.
-- `.gitignore` — claude-mem store, code-review-graph DB, `node_modules/`, `__pycache__/`, `.env`, build output.
+- `.gitignore` — claude-mem store, code-review-graph DB, `node_modules/`, `__pycache__/`, `.env`, build output, `.claude/settings.local.json` (personal overrides stay out of git; the shared `.claude/settings.json` IS committed).
 - DB local dev (only if Backend ≠ None): `docker-compose.yml` with the chosen DB service (MongoDB for Mongo, else the SQL engine) for local dev. See **DB connection** below.
 - If CI = Yes: `.github/workflows/ci.yml` with one job per EXISTING stack only:
   - Node BE → `pnpm install` → `biome check` (NestJS: `eslint`) → `tsc --noEmit` → `vitest run` → `build`.
@@ -226,11 +239,11 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - Tooling: {pnpm|npm|yarn} · {uv|poetry|pip if Python BE}            ← keep only what exists
 - Quality: {ruff+mypy+pytest (Python) | biome+tsc+vitest, or eslint+prettier for NestJS (Node)} · {eslint+prettier+vitest (FE)}   ← keep only what exists
 
-## Model routing (edit freely as needs change)
-- Default: Sonnet — build, test, refactor, scoped research, code exploration, in-scope synthesis
-- Opus: planning, architecture, code review, hard debugging, subtasks needing real tradeoffs
-- Haiku: bulk mechanical work, no judgment — rename, format, boilerplate
-- Pick the cheapest model that does the subtask well. If a sub-agent realizes it needs a higher tier than itself, return to the parent.
+## Model routing (policy — enforcement lives in .claude/settings.json)
+- Tier: {Flagship|Premium|Balanced|Economy} — `.claude/settings.json` sets the PM model (`model`) and FORCES the subagent model (`env.CLAUDE_CODE_SUBAGENT_MODEL`). The env wins over per-invocation model params and agent-file frontmatter, so it catches every subagent.
+- Why these tiers: Opus-class for planning, architecture, code review, hard debugging; Sonnet for build/test/refactor; Haiku only for bulk mechanical work, no judgment.
+- Escape hatches: one-off session — `CLAUDE_CODE_SUBAGENT_MODEL=opus claude` (shell env beats settings env); personal — `.claude/settings.local.json` (git-ignored, higher precedence than the shared settings); `/model` switches the PM for a session.
+- Pinning: replace aliases with full IDs (e.g. `claude-opus-4-8`, `claude-sonnet-4-6`) in settings.json when reproducibility matters.
 
 ## Tool usage
 - ALWAYS use code-review-graph MCP tools BEFORE Grep/Glob/Read. The graph is faster, cheaper, and gives structural context (callers, dependents, test coverage).
@@ -246,7 +259,7 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - Scope every task to a specific module/dir. NEVER "scan the whole repo".
 - Before reading, state which files and why; read only what the graph flags in-scope. No bulk reads.
 - Spawn a sub-agent to isolate context, parallelize independent work, or offload bulk mechanical tasks — it reads in its own context and returns a summary. Do NOT spawn when the parent needs the reasoning, when synthesis must hold things together, or when spawn overhead dominates. The parent owns the final output + cross-spawn synthesis.
-- `/clear` between unrelated tasks; `/compact` once context passes ~50%. One task = one session.
+- Session hygiene: fresh session per milestone/feature — start from docs/STATUS.md; don't marathon one session past ~150k context. `/clear` when switching to unrelated work; `/compact` mid-task if context balloons. Don't leave background/parallel sessions running unattended — they share the same usage limit.
 - Keep this file ≤150 lines; let claude-mem hold history, not CLAUDE.md.
 
 ## PmCamp persona
@@ -298,6 +311,7 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 - docs/STATUS.md is a SNAPSHOT of current state, NOT a growing log. Keep ONLY: current milestone, in-progress, next up, open decisions/blockers. Hard cap ~40 lines.
 - Prune every milestone: when one finishes, collapse it to a single line or drop it — release the detail. Completed-work history lives in git history + claude-mem; decisions go in docs/adr/. STATUS.md must never grow unbounded.
 - On session start, read STATUS.md (small by design) to restate where things stand; pull deeper history from git / claude-mem / ADRs only on demand.
+- Session hygiene: fresh session per milestone/feature — start from docs/STATUS.md; don't marathon one session past ~150k context. /clear when switching to unrelated work; /compact mid-task if context balloons. Don't leave background/parallel sessions running unattended — they share the same usage limit.
 - Re-assert this PM role at the start of each milestone. If you catch yourself coding directly on a large task, stop and delegate.
 ```
 </phase_4_scaffold>
@@ -306,6 +320,7 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 - Run `code-review-graph status` → confirm graph built AND auto-update hooks registered.
 - Memory (conditional): if claude-mem was installed → confirm active for this project (`claude-mem status`). If another memory tool was detected in Phase 1 → confirm it's active instead. If memory was skipped → note "memory tool not configured".
 - If a backend was scaffolded: confirm it RUNS — start it and hit `GET /health` (or run the generator's smoke test); confirm the module-based layout exists (`src/modules/health/`, schemas in the DB-aware location), the connection/init module is wired, and the relevant rule file(s) were copied into `.claude/rules/` (node.md / python.md / mongodb.md). For MongoDB confirm `docker-compose.yml` + `MONGODB_URI` in `.env.example`.
+- Model tier: confirm `.claude/settings.json` exists, is valid JSON, and contains the chosen tier's mapping (`model`, plus `env.CLAUDE_CODE_SUBAGENT_MODEL` for tiers that set it). Then a LIVE check — file inspection is NOT enough (old reports of subagent model config being ignored, #5456, and VS Code-extension env quirks): spawn ONE trivial subagent (e.g. "reply OK") and confirm the model it actually ran on matches the tier — via the transcript's model field or the `/cost` per-model breakdown. On mismatch, report it plainly and point to the escape hatches in CLAUDE.md's Model routing; do not silently pass. CAVEAT: settings env is read at session start — if settings.json was written THIS session, the env may not be live yet; in that case report the file check, mark the live check ⏸️ pending restart, and tell the user to re-verify after restarting Claude Code.
 - Confirm Superpowers chain is complete (at least brainstorming + writing-plans present).
 - Confirm andrej-karpathy-skills is active — engineering principles depend on it (they were intentionally NOT written into CLAUDE.md).
 - If a design system was chosen: confirm `DESIGN.md` exists at the FE root and the FE CLAUDE.md points to it.
