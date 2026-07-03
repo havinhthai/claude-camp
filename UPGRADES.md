@@ -125,3 +125,12 @@ Per-project model-tier presets, ENFORCED via committed `.claude/settings.json` �
 - **Known trade-off (accepted):** the env also flattens per-invocation tier selection by the PM; escape hatches documented instead.
 - **Phase 5:** verifies settings.json validity AND does a LIVE check — spawn one trivial subagent, confirm its actual model matches the tier (transcript/`/cost`); file inspection alone insufficient (#5456 reports + VS Code env quirks). Just-written settings → ⏸️ pending restart.
 - **Session hygiene** (root CLAUDE.md template + PmCamp "State & continuity"): fresh session per milestone/feature starting from `docs/STATUS.md`, no marathons past ~150k context; `/clear` on unrelated work, `/compact` mid-task if context balloons; no unattended background/parallel sessions (shared limit).
+
+## 11. ponytail minimalism plugin ✅ v1.2.1
+
+Added [ponytail](https://github.com/DietrichGebert/ponytail) to the curated global toolkit — enforces YAGNI-ladder minimalism at code-generation time (reuse > stdlib > native > dep > one line > minimum), safety-preserving ("lazy, not negligent" — never trims validation, security, or accessibility).
+
+- **Audit + install:** Phase 1 detects it alongside Superpowers / karpathy / claude-mem / code-review-graph / caveman / Matt Pocock / rtk / agent-browser; Phase 3 default-installs like Superpowers via `/plugin marketplace add DietrichGebert/ponytail` + `/plugin install ponytail@ponytail` (NOT opt-in). Ships two tiny Node.js lifecycle hooks (needs `node` on PATH; degrades gracefully if absent) and writes an optional `statusLine` entry to `~/.claude/settings.json` (bundled cleanup script). Default mode is **full** — not forced. Graceful-degrade: blocked install → manual command + ⏸️ pending + continue.
+- **CLAUDE.md tool-usage:** one line stating ponytail enforces minimalism at code-gen; modes `/ponytail ultra` (aggressive) and `/ponytail off` (disable if it ever under-builds); explicit boundary vs karpathy — **karpathy-skills = engineering principles (Simplicity First); ponytail = the operational, measured minimalism layer (ladder + review/audit/debt commands)**. They layer, not duplicate.
+- **PmCamp Verification:** at milestone close, run `/ponytail-review` on the milestone diff as an anti-over-engineering check — surface the delete-list if any. Non-blocking (prompt to trim, not a gate); complements the existing tests / git / acceptance verification.
+- **README:** linked bullet under "What /basecamp sets up".

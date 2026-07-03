@@ -31,6 +31,7 @@ Global tooling — report `✅ present` / `❌ missing` for each:
 - agent-browser (token-efficient browser; try `agent-browser --version`)
 - Matt Pocock skills: improve-codebase-architecture, git-guardrails-claude-code, setup-pre-commit
 - andrej-karpathy-skills (provides engineering principles)
+- ponytail (Claude Code plugin — enforces YAGNI-ladder minimalism at code-generation time)
 
 This project — check: git repo + commit history, existing `CLAUDE.md`, `.claude/` dir, code-review-graph (and whether its auto-update hooks are registered). ALSO detect whether this is an EXISTING codebase: real source files, a package manifest (package.json / pyproject.toml / requirements.txt / go.mod …), lockfiles, established dirs.
 
@@ -96,6 +97,13 @@ Install ONLY what Phase 1 found missing. Ask before each global change. `/plugin
   /plugin marketplace add forrestchang/andrej-karpathy-skills
   /plugin install andrej-karpathy-skills@karpathy-skills
   ```
+
+- **ponytail** (Claude Code plugin) — enforces the YAGNI ladder (reuse > stdlib > native > dep > one line > minimum) at code-generation time; safety-preserving ("lazy, not negligent" — never trims validation, security, or accessibility). Default-install like Superpowers — NOT opt-in:
+  ```
+  /plugin marketplace add DietrichGebert/ponytail
+  /plugin install ponytail@ponytail
+  ```
+  Ships two tiny Node.js lifecycle hooks (requires `node` on PATH; degrades gracefully if absent) and writes an optional `statusLine` entry to `~/.claude/settings.json` (bundled cleanup script removes it on uninstall). Default mode is `full` — do NOT force a mode. Restart Claude Code after install so the hooks + `/ponytail*` commands surface.
 
 - **Matt Pocock skills** (npx `skills` CLI — NOT a Claude Code plugin) — install missing ones from: `improve-codebase-architecture`, `git-guardrails-claude-code` (real name; older docs say "git-guardrails"), `setup-pre-commit`. Per-skill (deterministic, no TUI):
   ```
@@ -251,6 +259,7 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - Fetching: WebFetch for public pages; if agent-browser is installed, use it for dynamic or auth-walled pages (accessibility tree with element refs — far cheaper than screenshots). If a fetch/parse pattern recurs, wrap it as a named tool under "## Dedicated tools".
 - PDFs: use `pdftotext`, not the Read tool (Read loads PDFs as images = expensive). Read a PDF only when the user explicitly asks to analyze its images/charts.
 - {caveman line — ONLY if caveman was installed in Phase 3: "caveman is on-demand ONLY — invoke `/caveman [lite|full|ultra]` when you want compressed output; it is NOT always-on and must not compress PmCamp's user-facing messages." OMIT this line if caveman wasn't installed.}
+- ponytail enforces minimalism at code-generation time — write the least code that works; reuse existing / stdlib / native before adding. Modes: `/ponytail ultra` (aggressive) if it still over-builds; `/ponytail off` to disable if it ever under-builds. Boundary: karpathy-skills = engineering principles (Simplicity First); ponytail = the operational, measured minimalism layer (ladder + review/audit/debt commands) — they layer, not duplicate.
 
 ## Dedicated tools
 - {Project-specific fetch/parse tools go here, each linking to its skill or script. Orchestration lives in those files, not in this list.}
@@ -306,6 +315,7 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 - NEVER mark a milestone "done" from a sub-agent's word. Verify yourself: run the tests, check git log for real commits, confirm files hold real implementation (not stubs/TODOs), and check the doc's acceptance criteria are actually met.
 - Report completion WITH evidence: test counts, commit hashes, files changed.
 - If a sub-agent errors (e.g. "No such tool available"), DIAGNOSE the root cause and report it — do NOT retry blindly or loop. If output claims success but git/tests don't back it up, treat it as NOT done and say so.
+- At milestone close, run `/ponytail-review` on the milestone diff as an anti-over-engineering check — surface the delete-list if any. Non-blocking: a prompt to trim, not a gate; complements (does not replace) tests / git / acceptance verification above.
 
 ## State & continuity
 - docs/STATUS.md is a SNAPSHOT of current state, NOT a growing log. Keep ONLY: current milestone, in-progress, next up, open decisions/blockers. Hard cap ~40 lines.

@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.0-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.1-3fb950.svg)](#)
 
 </div>
 
@@ -103,6 +103,7 @@ On first run, `/basecamp` audits and installs (only what's missing) a curated gl
 
 - **[Superpowers](https://github.com/obra/superpowers-marketplace)** — the brainstorm → plan → TDD → review workflow
 - **[andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills)** — engineering principles (Simplicity First, Surgical Changes, …)
+- **[ponytail](https://github.com/DietrichGebert/ponytail)** — writes the minimum code that works (YAGNI ladder: reuse > stdlib > native > dep > one line > minimum), safety-preserving (never trims validation/security/accessibility) — trims LOC, tokens, and cost
 - **[claude-mem](https://github.com/thedotmack/claude-mem)** — cross-session memory
 - **[code-review-graph](https://github.com/tirth8205/code-review-graph)** — an AST map of your code (query it instead of reading the whole repo)
 - **[caveman](https://github.com/JuliusBrussee/caveman)** — compresses Claude's own output (installed **on-demand only** via `/caveman` — never the always-on hook, so it won't garble the PM's messages)
