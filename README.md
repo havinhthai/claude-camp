@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.2-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.3-3fb950.svg)](#)
 
 </div>
 
@@ -68,6 +68,7 @@ Update later with:
 | --- | --- |
 | `/basecamp` | Bootstrap a project. Audits and installs the global toolkit, scaffolds to the chosen stack, and writes `CLAUDE.md` + the PmCamp persona. Runs in **greenfield** mode (new) or **adopt** mode (existing codebase). |
 | `/basecamp adopt` | Force adopt mode for an existing codebase — detect the stack, build the code graph, scaffold only what's missing, never overwrite. |
+| `/basecamp refresh` | Sync project-local copies (`PmCamp.md`, `rules/`) with the installed plugin version; user-modified files are never overwritten without confirmation. |
 | `/kickcamp <doc>` | Hand a requirements doc to PmCamp: triage → milestones (you confirm) → build via sub-agents → **verify** (tests + git + acceptance) → report. |
 
 ## How it works

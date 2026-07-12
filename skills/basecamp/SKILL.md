@@ -11,6 +11,8 @@ Two modes — decide in Phase 1:
 - **GREENFIELD** (default): new/empty project. Interview the stack, scaffold from scratch.
 - **ADOPT** (existing codebase): triggered if $ARGUMENTS contains "adopt", OR Phase 1 finds an existing non-trivial codebase (real source + a package manifest + git history). In ADOPT you DETECT the stack instead of interviewing, and you are STRICTLY ADDITIVE — never scaffold over or overwrite existing code/config. If you detect an existing codebase but the user didn't say "adopt", CONFIRM switching to ADOPT before doing anything.
 Each phase notes its ADOPT difference; everything else is shared.
+
+**REFRESH shortcut:** if $ARGUMENTS contains "refresh" → run ONLY the "Project-local plugin copies" audit (Phase 1) + the **Plugin-copy refresh** block (Phase 4) — no interview, no installs, no scaffolding — then report per file what was updated / kept / still missing.
 </mode>
 
 <hard_rules>
@@ -34,6 +36,8 @@ Global tooling — report `✅ present` / `❌ missing` for each:
 - ponytail (Claude Code plugin — enforces YAGNI-ladder minimalism at code-generation time)
 
 This project — check: git repo + commit history, existing `CLAUDE.md`, `.claude/` dir, code-review-graph (and whether its auto-update hooks are registered). ALSO detect whether this is an EXISTING codebase: real source files, a package manifest (package.json / pyproject.toml / requirements.txt / go.mod …), lockfiles, established dirs.
+
+Project-local plugin copies — `.claude/PmCamp.md` + `.claude/rules/*.md` are COPIES of plugin files (plugin-loaded skills update themselves; copies go stale). Compare each against `${CLAUDE_PLUGIN_ROOT}` (plugin version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). Copies carry a first-line stamp `<!-- claude-camp: <file> v<X> · sha256:<12-hex> -->`; check the body with `tail -n +2 <copy> | shasum -a 256 | cut -c1-12` against the stamp's hash. Report one row per file in the audit table: `✅ current` (stamp version == plugin version) · `⬆️ outdated` (stamp version < plugin version AND body hash matches the stamp — untouched copy) · `✏️ user-modified` (hash mismatch, or no stamp — pre-v1.2.3 copies) · `❌ missing`.
 
 Decide the MODE (see <mode>): existing codebase → ADOPT (confirm with the user if they didn't ask for it); otherwise GREENFIELD. State the chosen mode.
 
@@ -154,14 +158,25 @@ Report `✅ installed` / `⏭️ skipped (present)` / `⏸️ pending (manual)` 
 </phase_3_install>
 
 <phase_4_scaffold>
+**Plugin-copy refresh (`.claude/PmCamp.md` + `.claude/rules/*.md`) — BOTH modes, every run (and the whole job of `/basecamp refresh`).** Copy these files WITH a one-line provenance stamp prepended — an HTML comment, invisible to markdown rendering and harmless to the `@.claude/PmCamp.md` import:
+```bash
+{ printf '<!-- claude-camp: %s v%s · sha256:%s -->\n' "<file>" "<plugin version>" "$(shasum -a 256 "<plugin source>" | cut -c1-12)"; cat "<plugin source>"; } > "<copy>"
+```
+Version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`; the hash covers the plugin source bytes, so the copy's body (everything after the stamp) hashes back to it while untouched. Then act on each file's Phase 1 state:
+- `✅ current` → skip silently (idempotent — unchanged behavior).
+- `⬆️ outdated` AND untouched (body hash matches its stamp) → refresh (re-copy + new stamp) and say so: "Updated .claude/PmCamp.md → v<new>".
+- `✏️ user-modified` — or unprovable (no/garbled stamp) → NEVER overwrite without explicit confirmation. AskUserQuestion (header "PmCamp" for the persona, "Rules" for rule files; batch files sharing a state into ONE question, ≤4 options): "Update <file(s)> to v<new>?" → "Keep mine ★" · "Show diff" · "Overwrite (back up to <file>.bak)". "Show diff" prints the copy-vs-plugin diff, then re-asks. On Overwrite, write `<file>.bak` FIRST, then re-copy + stamp.
+- `❌ missing` → copy fresh + stamp (existing behavior).
+Fallback-template writes (plugin root unresolvable) go UNSTAMPED — a later refresh treats them as user-modified, the safe default.
+
 **ADOPT mode — STRICTLY ADDITIVE (never overwrite existing code/config):**
 - Generate the root `CLAUDE.md` FROM the detected stack (describe what's actually there — do NOT fabricate). If a `CLAUDE.md` already exists, MERGE: add the `@.claude/PmCamp.md` import + any missing sections, show a diff, never clobber their content.
-- Add `.claude/PmCamp.md` (copy the bundled canonical file — see below) + the import line.
+- Add `.claude/PmCamp.md` (via the **Plugin-copy refresh** block above — stamped, drift-aware) + the import line.
 - Create `docs/`, `docs/requirements/`, `docs/adr/` + the ADR template ONLY if missing.
 - Reflect the project's EXISTING quality tooling (detected linter/test runner) in CLAUDE.md — do NOT impose a new one. If there is NO quality setup at all, OFFER to add it; don't force.
 - Do NOT create stack folders, configs, `.env.example`, or `.gitignore` that already exist. For `.gitignore`, APPEND missing entries (graph DB, claude-mem store) — don't rewrite.
 - Write/merge `.claude/settings.json` with the chosen model tier — SAME merge + conflict rules as the greenfield bullet below (preserve all other keys; differing `model` / `env.CLAUDE_CODE_SUBAGENT_MODEL` → AskUserQuestion "Keep existing" · "Apply <tier>"; matching values stay silent).
-- Seed `.claude/rules/` only if absent. Skip every greenfield step below that would re-create something the repo already has.
+- Seed/refresh `.claude/rules/` via the **Plugin-copy refresh** block above. Skip every greenfield step below that would re-create something the repo already has.
 Then go to Phase 5. The steps below are the GREENFIELD scaffold.
 
 **GREENFIELD mode:** Create the per-project basecode from the Phase 2 answers. If a file already exists, show a diff and ASK before overwriting.
@@ -171,8 +186,8 @@ Files to create — ADAPT to the stacks chosen in Phase 2. Do NOT scaffold a fol
 - CLAUDE.md:
   - Full-stack (BE + FE) → root `CLAUDE.md` (lean, template below) + `backend/CLAUDE.md` + `frontend/CLAUDE.md` (sub-files load on demand; keep lean, no duplication of root).
   - Single-stack → ONE root `CLAUDE.md` only (no split — nothing to scope).
-- `.claude/PmCamp.md` — the PmCamp persona (copy the bundled canonical file — see below); root CLAUDE.md imports it via `@.claude/PmCamp.md`.
-- `.claude/rules/` — rule files WITHOUT `paths:` frontmatter auto-load at launch (global), so they are reliably present when CREATING and editing files — first module / greenfield included. This is the only create-reliable mechanism: `paths:` auto-scope injects on Read not Write (#23478), and subdirectory `CLAUDE.md` (e.g. `backend/CLAUDE.md`) loads only on demand, is unreliable in practice (#24987, #2571), and does NOT survive compaction (only root survives) — so do NOT route conventions through it. COPY the relevant bundled rule file(s) from `${CLAUDE_PLUGIN_ROOT}/rules/` into the PROJECT-ROOT `.claude/rules/` (NOT `backend/.claude/rules/`) — same pattern as PmCamp.md — based on the locked stack: `node.md` if the backend is Node, `python.md` if the backend is Python, `mongodb.md` if DB = MongoDB. If `${CLAUDE_PLUGIN_ROOT}` can't be resolved, warn and skip (don't hand-write them).
+- `.claude/PmCamp.md` — the PmCamp persona (copy the bundled canonical file via the **Plugin-copy refresh** block — stamped, drift-aware; see below); root CLAUDE.md imports it via `@.claude/PmCamp.md`.
+- `.claude/rules/` — rule files WITHOUT `paths:` frontmatter auto-load at launch (global), so they are reliably present when CREATING and editing files — first module / greenfield included. This is the only create-reliable mechanism: `paths:` auto-scope injects on Read not Write (#23478), and subdirectory `CLAUDE.md` (e.g. `backend/CLAUDE.md`) loads only on demand, is unreliable in practice (#24987, #2571), and does NOT survive compaction (only root survives) — so do NOT route conventions through it. COPY the relevant bundled rule file(s) from `${CLAUDE_PLUGIN_ROOT}/rules/` into the PROJECT-ROOT `.claude/rules/` (NOT `backend/.claude/rules/`) — via the **Plugin-copy refresh** block (stamped, drift-aware), same pattern as PmCamp.md — based on the locked stack: `node.md` if the backend is Node, `python.md` if the backend is Python, `mongodb.md` if DB = MongoDB. If `${CLAUDE_PLUGIN_ROOT}` can't be resolved, warn and skip (don't hand-write them).
 - `.claude/settings.json` — per-project, COMMITTED. Enforces the locked model tier (ALIAS-based model names, not full IDs):
   - Flagship → `{"model": "fable", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"}}`
   - Premium → `{"model": "opus", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"}}`
@@ -258,6 +273,7 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - {Memory line — fill from Phase 3: if claude-mem chosen → "claude-mem holds session history — query it, do NOT re-paste prior decisions." If another memory tool detected (agentmemory/mem0/etc.) → swap "claude-mem" for that tool's name. If memory was skipped → OMIT this line.}
 - Fetching: WebFetch for public pages; if agent-browser is installed, use it for dynamic or auth-walled pages (accessibility tree with element refs — far cheaper than screenshots). If a fetch/parse pattern recurs, wrap it as a named tool under "## Dedicated tools".
 - PDFs: use `pdftotext`, not the Read tool (Read loads PDFs as images = expensive). Read a PDF only when the user explicitly asks to analyze its images/charts.
+- `.claude/PmCamp.md` + `.claude/rules/` are COPIES of claude-camp plugin files — after a plugin update, run `/basecamp refresh` to sync them (user-modified files are never overwritten without confirmation).
 - {caveman line — ONLY if caveman was installed in Phase 3: "caveman is on-demand ONLY — invoke `/caveman [lite|full|ultra]` when you want compressed output; it is NOT always-on and must not compress PmCamp's user-facing messages." OMIT this line if caveman wasn't installed.}
 - ponytail enforces minimalism at code-generation time — write the least code that works; reuse existing / stdlib / native before adding. Modes: `/ponytail ultra` (aggressive) if it still over-builds; `/ponytail off` to disable if it ever under-builds. Boundary: karpathy-skills = engineering principles (Simplicity First); ponytail = the operational, measured minimalism layer (ladder + review/audit/debt commands) — they layer, not duplicate.
 
@@ -283,7 +299,7 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - {Dirs not to scan or edit — e.g. legacy/, generated/}
 ```
 
-`.claude/PmCamp.md` — PREFER copying the canonical persona bundled with this plugin: `${CLAUDE_PLUGIN_ROOT}/PmCamp.md` → `.claude/PmCamp.md` (single source of truth — no drift). ONLY if that path can't be resolved (e.g. basecamp run outside the plugin), write the fallback template below verbatim:
+`.claude/PmCamp.md` — PREFER copying the canonical persona bundled with this plugin: `${CLAUDE_PLUGIN_ROOT}/PmCamp.md` → `.claude/PmCamp.md` via the **Plugin-copy refresh** block (stamped — single source of truth, drift detectable). ONLY if that path can't be resolved (e.g. basecamp run outside the plugin), write the fallback template below verbatim (unstamped — see the refresh block):
 ```markdown
 # PmCamp — Project Manager (PM) persona
 
