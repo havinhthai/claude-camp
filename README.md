@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.1-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.2-3fb950.svg)](#)
 
 </div>
 
@@ -117,6 +117,8 @@ If an install is blocked by a permission or classifier prompt, `/basecamp` print
 `PmCamp.md` in this repository is the **single source of truth** for the PM's behaviour. During scaffolding, `/basecamp` copies it from the plugin directory (`${CLAUDE_PLUGIN_ROOT}/PmCamp.md`) into the project's `.claude/PmCamp.md` — no embedded duplicate, so the persona can't drift. (A fallback template is retained for runs outside the plugin.)
 
 To change how the PM behaves — verification, communication style, state handling — edit `PmCamp.md` here, commit, and push. Every later `/basecamp` picks up the new version.
+
+For user-facing milestones, verification goes beyond tests: PmCamp builds and runs the product, walks the primary user flows end-to-end, and checks UI states (empty/loading/error/validation) against `DESIGN.md` before calling anything done.
 
 ## Optional tools
 
