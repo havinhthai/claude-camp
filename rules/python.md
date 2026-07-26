@@ -43,3 +43,5 @@ backend/
 - Layered: `router.py` handles HTTP + validation only → `service.py` holds logic → `repository.py` owns data access. No DB calls in routers.
 - Validate at the edge: `dto.py` Pydantic models for every request/response.
 - Tests mirror source tree under `tests/`.
+- **All code is English** — identifiers (variables, functions, classes, files), comments, docstrings, log messages, commit messages. Vietnamese is used ONLY for talking to the user (PmCamp communication) — NEVER in code or artifacts.
+- **Impact analysis before changing shared code** — before editing a function / type / schema / API used elsewhere, query code-review-graph for its dependents and verify the impacted callers' tests, not only tests near the changed file.

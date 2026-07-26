@@ -45,3 +45,5 @@ backend/src/
 - Layered: controller/route handles HTTP only → service holds logic → repository owns data access. No DB calls in controllers.
 - Validate at the edge: NestJS `dto/` (class-validator); Fastify/Express `<domain>.validation.ts` (zod / JSON schema).
 - Tests mirror source tree.
+- **All code is English** — identifiers (variables, functions, classes, files), comments, docstrings, log messages, commit messages. Vietnamese is used ONLY for talking to the user (PmCamp communication) — NEVER in code or artifacts.
+- **Impact analysis before changing shared code** — before editing a function / type / schema / API used elsewhere, query code-review-graph for its dependents and verify the impacted callers' tests, not only tests near the changed file.

@@ -9,7 +9,9 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.3-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.4-3fb950.svg)](#)
+
+> **v1.2.4** — All code is English (identifiers, comments, commits; Vietnamese stays for PmCamp ↔ user only); sub-agents must run **pre-change impact analysis** via code-review-graph before editing shared code, and verify the impacted callers' tests — TDD alone doesn't catch cross-feature regressions.
 
 </div>
 

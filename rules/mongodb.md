@@ -23,3 +23,6 @@ ODM by language: **Mongoose** (Node) · **Beanie** (Python). One schema per file
 ## Connection + env
 - Connection/init module wired into app startup (Mongoose `connect` in `db/`; Beanie `init_beanie` in `db.py`).
 - `MONGODB_URI` (+ DB name) from `.env` — never hardcoded. Ship `.env.example` + a local MongoDB `docker-compose.yml`.
+
+## Change discipline
+- **Impact analysis before changing a shared schema** — schemas in `src/schemas/` are cross-module. Before editing a field / index / validator, query code-review-graph for every module that imports the schema and verify their tests, not only the one that triggered the change.
