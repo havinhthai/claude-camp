@@ -9,7 +9,9 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.4-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.5-3fb950.svg)](#)
+
+> **v1.2.5** — An on-demand `docs/ARCHITECTURE.md` module map (read before cross-module work) + an always-loaded **Known pitfalls** list (two-strikes, capped at 10) against "fix A, break B"; PmCamp's own ceremony scales with Superpowers' Bounded classification — tests, impact analysis, and verification are never skipped.
 
 > **v1.2.4** — All code is English (identifiers, comments, commits; Vietnamese stays for PmCamp ↔ user only); sub-agents must run **pre-change impact analysis** via code-review-graph before editing shared code, and verify the impacted callers' tests — TDD alone doesn't catch cross-feature regressions.
 

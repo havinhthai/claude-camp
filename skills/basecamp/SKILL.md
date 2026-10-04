@@ -26,7 +26,7 @@ These override everything else:
 
 <phase_1_audit>
 Global tooling — report `✅ present` / `❌ missing` for each:
-- Superpowers — list WHICH skills exist (brainstorming, writing-plans, TDD, code-review, requesting-code-review). Flag if PARTIAL.
+- Superpowers — list WHICH skills exist (brainstorming, writing-plans, TDD, code-review, requesting-code-review). Flag if PARTIAL. Also check its VERSION at user AND project scope: `claude plugin list --json` (fallback: `~/.claude/plugins/installed_plugins.json`) → every `superpowers@*` entry whose `scope` is user or whose `projectPath` is this repo. Any entry <6.3.0 (project pins included) → ⚠️ warn — older versions lack the Spike/Bounded/Architectural classification PmCamp's lanes key off — and print the upgrade: `claude plugin marketplace update <marketplace> && claude plugin update superpowers@<marketplace> --scope <scope>` (project scope: run inside this repo; restart after). NEVER auto-change a project pin. Version unreadable → report `❔ unknown` and continue.
 - Memory: try `claude-mem status` first. ALSO check for any other memory system already in use — agentmemory MCP server, mem0, custom memory tools (look in `~/.claude/settings.json`, `~/.claude/mcp_servers.json`, env vars, project `.mcp.json`). If a non-claude-mem memory tool is present, report `✅ present ({tool})` and do NOT push claude-mem later.
 - caveman (compresses Claude's output)
 - rtk (Rust Token Killer — compresses command output; try `rtk gain`. A `~/.claude/RTK.md` is its install signature — likely already present)
@@ -37,7 +37,7 @@ Global tooling — report `✅ present` / `❌ missing` for each:
 
 This project — check: git repo + commit history, existing `CLAUDE.md`, `.claude/` dir, code-review-graph (and whether its auto-update hooks are registered). ALSO detect whether this is an EXISTING codebase: real source files, a package manifest (package.json / pyproject.toml / requirements.txt / go.mod …), lockfiles, established dirs.
 
-Project-local plugin copies — `.claude/PmCamp.md` + `.claude/rules/*.md` are COPIES of plugin files (plugin-loaded skills update themselves; copies go stale). Compare each against `${CLAUDE_PLUGIN_ROOT}` (plugin version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). Copies carry a first-line stamp `<!-- claude-camp: <file> v<X> · sha256:<12-hex> -->`; check the body with `tail -n +2 <copy> | shasum -a 256 | cut -c1-12` against the stamp's hash. Report one row per file in the audit table: `✅ current` (stamp version == plugin version) · `⬆️ outdated` (stamp version < plugin version AND body hash matches the stamp — untouched copy) · `✏️ user-modified` (hash mismatch, or no stamp — pre-v1.2.3 copies) · `❌ missing`.
+Project-local plugin copies — `.claude/PmCamp.md` + each `.claude/rules/<name>.md` whose `<name>.md` exists in `${CLAUDE_PLUGIN_ROOT}/rules/` are COPIES of plugin files (plugin-loaded skills update themselves; copies go stale). Any other `.claude/rules/*.md` is project-owned — never audit, flag, or refresh it. Compare each copy against `${CLAUDE_PLUGIN_ROOT}` (plugin version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). Copies carry a first-line stamp `<!-- claude-camp: <file> v<X> · sha256:<12-hex> -->`; check the body with `tail -n +2 <copy> | shasum -a 256 | cut -c1-12` against the stamp's hash. Report one row per file in the audit table: `✅ current` (stamp version == plugin version) · `⬆️ outdated` (stamp version < plugin version AND body hash matches the stamp — untouched copy) · `✏️ user-modified` (hash mismatch, or no stamp — pre-v1.2.3 copies) · `❌ missing`.
 
 Decide the MODE (see <mode>): existing codebase → ADOPT (confirm with the user if they didn't ask for it); otherwise GREENFIELD. State the chosen mode.
 
@@ -127,10 +127,10 @@ Install ONLY what Phase 1 found missing. Ask before each global change. `/plugin
 - **code-review-graph** (Python; pipx; requires Python 3.10+):
   ```
   pipx install code-review-graph
-  code-review-graph install --platform claude-code
+  code-review-graph install --platform claude-code --no-instructions
   code-review-graph build
   ```
-  `install --platform claude-code` registers BOTH the MCP server AND auto-update hooks — confirm with `code-review-graph status`. Do NOT enable watch mode — hooks are event-driven and cost nothing when idle. Optional: install `uv` so the generated MCP config uses `uvx`.
+  `install --platform claude-code` registers BOTH the MCP server AND auto-update hooks — confirm with `code-review-graph status`. Do NOT enable watch mode — hooks are event-driven and cost nothing when idle. Optional: install `uv` so the generated MCP config uses `uvx`. `--no-instructions` skips only the ~40-line tool guide it would append to CLAUDE.md (and its default-yes [Y/n] prompt) — the template's Tool-usage lines name the key tools instead; MCP server, hooks, and its on-demand graph skills still install. Existing installs are unaffected: a CLAUDE.md that already has the appended section keeps it (delete it by hand to reclaim ~500 tokens). The flag needs code-review-graph ≥2.3.0 (`code-review-graph --version`) — upgrade an older install first (`pipx upgrade code-review-graph`, or `uv tool upgrade code-review-graph`).
 
 - **rtk** (optional, command-output compression) — if `rtk gain` failed in Phase 1 AND user wants it (skip if RTK.md already in `~/.claude`). Install (idempotent — brew/curl no-op if present):
   ```
@@ -158,7 +158,7 @@ Report `✅ installed` / `⏭️ skipped (present)` / `⏸️ pending (manual)` 
 </phase_3_install>
 
 <phase_4_scaffold>
-**Plugin-copy refresh (`.claude/PmCamp.md` + `.claude/rules/*.md`) — BOTH modes, every run (and the whole job of `/basecamp refresh`).** Copy these files WITH a one-line provenance stamp prepended — an HTML comment, invisible to markdown rendering and harmless to the `@.claude/PmCamp.md` import:
+**Plugin-copy refresh (`.claude/PmCamp.md` + the plugin-named `.claude/rules/*.md` — see Phase 1) — BOTH modes, every run (and the whole job of `/basecamp refresh`).** Copy these files WITH a one-line provenance stamp prepended — an HTML comment, invisible to markdown rendering and harmless to the `@.claude/PmCamp.md` import:
 ```bash
 { printf '<!-- claude-camp: %s v%s · sha256:%s -->\n' "<file>" "<plugin version>" "$(shasum -a 256 "<plugin source>" | cut -c1-12)"; cat "<plugin source>"; } > "<copy>"
 ```
@@ -173,6 +173,7 @@ Fallback-template writes (plugin root unresolvable) go UNSTAMPED — a later ref
 - Generate the root `CLAUDE.md` FROM the detected stack (describe what's actually there — do NOT fabricate). If a `CLAUDE.md` already exists, MERGE: add the `@.claude/PmCamp.md` import + any missing sections, show a diff, never clobber their content.
 - Add `.claude/PmCamp.md` (via the **Plugin-copy refresh** block above — stamped, drift-aware) + the import line.
 - Create `docs/`, `docs/requirements/`, `docs/adr/` + the ADR template ONLY if missing.
+- Architecture doc — detect an existing one first: `find . -maxdepth 3 -iname 'architecture*' | grep -v -e '/node_modules/' -e '/\.git/'` (empty output = none; a command error is not), plus a `## Architecture` heading in CLAUDE.md (case-insensitive). Found → if its first line is `Verified at …` it's PmCamp's own (leave it); otherwise aim the CLAUDE.md `docs/ARCHITECTURE.md` pointer line at it, replacing its "(created once …)" note with "(user-owned)" — Phase 5 ORIENT offers additions to it as a diff, NEVER overwrites. None → Phase 5 ORIENT drafts `docs/ARCHITECTURE.md` (≥2 domain modules only).
 - Reflect the project's EXISTING quality tooling (detected linter/test runner) in CLAUDE.md — do NOT impose a new one. If there is NO quality setup at all, OFFER to add it; don't force.
 - Do NOT create stack folders, configs, `.env.example`, or `.gitignore` that already exist. For `.gitignore`, APPEND missing entries (graph DB, claude-mem store) — don't rewrite.
 - Write/merge `.claude/settings.json` with the chosen model tier — SAME merge + conflict rules as the greenfield bullet below (preserve all other keys; differing `model` / `env.CLAUDE_CODE_SUBAGENT_MODEL` → AskUserQuestion "Keep existing" · "Apply <tier>"; matching values stay silent).
@@ -269,8 +270,10 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - Pinning: replace aliases with full IDs (e.g. `claude-opus-4-8`, `claude-sonnet-4-6`) in settings.json when reproducibility matters.
 
 ## Tool usage
-- **All code is English** — identifiers, comments, docstrings, log messages, commit messages. Vietnamese is used ONLY for PmCamp ↔ user communication — NEVER in code or artifacts.
+- **All code is English** — identifiers, comments, docstrings, log messages, commit messages — and so are agent-written repo docs (ARCHITECTURE, ADRs, STATUS, Known pitfalls). User-authored requirement docs stay as written. Vietnamese is used ONLY for PmCamp ↔ user communication — NEVER in code or agent-written artifacts.
 - ALWAYS use code-review-graph MCP tools BEFORE Grep/Glob/Read. The graph is faster, cheaper, and gives structural context (callers, dependents, test coverage). Before editing SHARED code (a function, type, schema, or API used elsewhere), query the graph for its dependents and run the impacted callers' tests — not only tests near the changed file.
+- Key graph tools — impact (before shared-code edits): `query_graph_tool` (`callers_of` / `importers_of` / `tests_for`), `get_impact_radius_tool` / `get_affected_flows_tool` with `changed_files` = the files you will edit (the default diffs `HEAD~1`); after edits: `detect_changes_tool`. Overview: `get_architecture_overview_tool` only if it has a `detail_level` parameter (code-review-graph ≥2.3.4), else `list_communities_tool` (`detail_level="minimal"`) + `get_surprising_connections_tool`; plus `get_hub_nodes_tool` / `get_bridge_nodes_tool`. Never the `architecture_map` prompt.
+- `docs/ARCHITECTURE.md` — module map (created once ≥2 domain modules exist). Read it before cross-module or shared-code work, alongside the graph impact query. On-demand — never `@`-import it.
 - {Memory line — fill from Phase 3: if claude-mem chosen → "claude-mem holds session history — query it, do NOT re-paste prior decisions." If another memory tool detected (agentmemory/mem0/etc.) → swap "claude-mem" for that tool's name. If memory was skipped → OMIT this line.}
 - Fetching: WebFetch for public pages; if agent-browser is installed, use it for dynamic or auth-walled pages (accessibility tree with element refs — far cheaper than screenshots). If a fetch/parse pattern recurs, wrap it as a named tool under "## Dedicated tools".
 - PDFs: use `pdftotext`, not the Read tool (Read loads PDFs as images = expensive). Read a PDF only when the user explicitly asks to analyze its images/charts.
@@ -295,6 +298,9 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 
 ## Project invariants
 - {Fill per project — e.g. data integrity rules, security constraints, must-pass checks}
+
+## Known pitfalls
+<!-- Empty until a project-specific agent mistake recurs — PmCamp appends one line on the 2nd occurrence: symptom → do instead (YYYY-MM-DD). Hard cap 10. -->
 
 ## Forbidden zones
 - {Dirs not to scan or edit — e.g. legacy/, generated/}
@@ -326,9 +332,11 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 
 ## Execution
 - Per milestone, execute through the Superpowers workflow — let its meta-skill drive the stages; you orchestrate, you don't re-specify or re-run them.
+- Lanes (thin mapping onto Superpowers). When Superpowers classifies a task as Bounded, skip PmCamp's milestone breakdown/confirmation and /ponytail-review; skip the ADR unless the task made a non-trivial decision. NEVER skip tests, impact analysis, verification, or the product walkthrough for user-facing changes. Never override Superpowers' own stages.
 - Delegate implementation to sub-agents; stay thin — keep your context for coordination, not code.
 - When delegating user-facing work, the task spec handed to sub-agents must carry the flows + UI states + design reference from intake — not just functional behavior.
-- Impact analysis before shared-code edits (mandatory). Before a sub-agent edits SHARED / interface code — a function, type, schema, or API used elsewhere — it MUST first query code-review-graph for what depends on it and verify the IMPACTED callers' tests (not only tests near the changed file). Rationale: a sub-agent's local context misses global regressions; graph-based pre-change impact analysis cuts regressions ~70% (TDAD 2026), and TDD ALONE does NOT prevent cross-feature regressions — impact analysis is the missing piece. Token-cheap (query the prebuilt graph, don't re-read the repo) and avoids the far larger cost of debugging a late regression.
+- Impact analysis before shared-code edits (mandatory). Before a sub-agent edits SHARED / interface code — a function, type, schema, or API used elsewhere — it MUST first query code-review-graph for what depends on it (full detail — detail_level="minimal" lists only 5; if the result is saved to a file, jq it — don't drop to minimal) and verify the IMPACTED callers' tests (not only tests near the changed file). Rationale: a sub-agent's local context misses global regressions; graph-based pre-change impact analysis cuts regressions ~70% (TDAD 2026), and TDD ALONE does NOT prevent cross-feature regressions — impact analysis is the missing piece. Token-cheap (query the prebuilt graph, don't re-read the repo) and avoids the far larger cost of debugging a late regression.
+- Architecture map before cross-module work. Before cross-module or shared-code work, read docs/ARCHITECTURE.md (or the architecture doc CLAUDE.md points to) together with the graph impact query above. The doc is the map, the graph the source of truth — if they disagree, trust the graph and fix the doc at milestone close.
 - Route each task to the right specialist. Honor CLAUDE.md: invariants, model routing, token discipline, graph-before-Grep/Read.
 
 ## Verification (mandatory — never trust a claim)
@@ -348,6 +356,9 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 - Prune every milestone: when one finishes, collapse it to a single line or drop it — release the detail. Completed-work history lives in git history + claude-mem; decisions go in docs/adr/. STATUS.md must never grow unbounded.
 - On session start, read STATUS.md (small by design) to restate where things stand; pull deeper history from git / claude-mem / ADRs only on demand.
 - At every handover / milestone close, update docs/STATUS.md (the shared overview snapshot) AND record any non-trivial decision as an ADR in docs/adr/ so decisions stay comparable. Both stay concise and on-demand — never always-loaded.
+- docs/ARCHITECTURE.md — module map, on-demand (never @-imported). Create it once the project has ≥2 domain modules, unless an architecture doc already exists (CLAUDE.md's pointer, or any architecture* doc) — one without the Verified at first line is user-owned: propose changes as a diff; never move, rename, rewrite, or translate it. Update at milestone close ONLY when boundaries/contracts changed — staleness cue from code-review-graph (overview tools: see CLAUDE.md Tool usage): changed communities, new coupling warnings, or new hub/bridge nodes. Content: module map, boundaries, data flow, key contracts, shared hotspots; link .claude/rules/ + docs/adr/, never restate them. First line Verified at <commit>; English; cap ~80 lines.
+- Known pitfalls (root CLAUDE.md, always loaded). On the 2nd occurrence of a project-specific agent mistake, append one line: symptom → do instead (YYYY-MM-DD). Hard cap 10 — when full, graduate an entry to a mechanical check or drop the oldest one that hasn't recurred. Section missing (older projects) → create it right after ## Project invariants (/basecamp refresh never touches CLAUDE.md).
+- If the mistake violates an EXISTING rule, don't add a sentence — propose a mechanical check (lint / hook / CI) instead. An English-only check targets identifiers and comments only — NOT string literals, i18n files, or UI copy (Vietnamese product text is legitimate).
 - Session hygiene: fresh session per milestone/feature — start from docs/STATUS.md; don't marathon one session past ~150k context. /clear when switching to unrelated work; /compact mid-task if context balloons. Don't leave background/parallel sessions running unattended — they share the same usage limit.
 - Re-assert this PM role at the start of each milestone. If you catch yourself coding directly on a large task, stop and delegate.
 ```
@@ -361,7 +372,7 @@ You are PmCamp, the Project Manager (PM) for this project — the single, persis
 - Confirm Superpowers chain is complete (at least brainstorming + writing-plans present).
 - Confirm andrej-karpathy-skills is active — engineering principles depend on it (they were intentionally NOT written into CLAUDE.md).
 - If a design system was chosen: confirm `DESIGN.md` exists at the FE root and the FE CLAUDE.md points to it.
-- ADOPT mode only: ORIENT before finishing — query the graph + read the main entry points to map the current architecture, then write an initial `docs/STATUS.md` snapshot (current architecture + where things stand) so the first /kickcamp has grounding. Do NOT invent state you didn't verify from the code.
+- ADOPT mode only: ORIENT before finishing — query the graph (the template's Tool-usage overview rule: `get_architecture_overview_tool` only if it has a `detail_level` parameter, else `list_communities_tool` minimal + `get_surprising_connections_tool`; plus `get_hub_nodes_tool` / `get_bridge_nodes_tool`; never the `architecture_map` prompt) + read the main entry points to map the current architecture. If Phase 4 found an existing architecture doc, offer what the map adds to it as a diff (NEVER overwrite); otherwise, if the codebase has ≥2 domain modules, write it to `docs/ARCHITECTURE.md` in PmCamp's format (first line `Verified at <commit>`; module map, boundaries, data flow, key contracts, shared hotspots; links `.claude/rules/` + `docs/adr/`; English; ≤80 lines) — with fewer, skip it. Then write an initial `docs/STATUS.md` — STATE ONLY (where things stand; no architecture) — so the first /kickcamp has grounding. Graph MCP not live yet (installed this session) → map from entry points + directory layout and say so. Do NOT invent state you didn't verify from the code.
 - List every file created and every tool configured.
 - Output: `🏕️ Basecamp ready ({GREENFIELD|ADOPT}). Stack: {summary of stacks + design system if any}. Next: drop a requirements doc in docs/requirements/ and run /kickcamp, or describe your first feature.`
 </phase_5_verify>
