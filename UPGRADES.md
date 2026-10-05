@@ -194,7 +194,7 @@ When the user works from the phone (see #1): PmCamp asks text questions only and
 
 Permission deny/ask rules plus PostToolUse lint hooks.
 
-## 19. Release versioning (backlog)
+## 19. Release versioning (backlog → v1.5.0)
 
 Conventional Commits + release-please, one product version. Open question: GitLab-hosted projects.
 
@@ -383,3 +383,91 @@ The persona went 8,479 → 7,533 chars (UTF-16, as the hook counts) — 948 fewe
 - Bounded closes still list a few evidence bullets rather than one line.
 - On-demand files rely on the PM following the trigger — 6/6 here, but only one model and one fixture.
 - Deferred: drafting a requirements doc from a rough idea. brainstorming ends by invoking writing-plans, so /kickcamp would have to stop it after the spec. `docs/qa/` not added.
+
+## 28. Portability — other OSes, shells, stacks, languages, Claude Code versions ✅ v1.4.0
+
+**Problem:** camp was verified on one macOS machine (VS Code extension 2.1.289, one VPN, Opus/Sonnet 5.5). A recon (2026-10-05) found what breaks elsewhere:
+- the copy audit's `tail | shasum | cut` pipeline is missing on Alpine/Debian-slim and in PowerShell;
+- a Windows (`core.autocrlf=true`) checkout of a stamped copy audits `✏️` on a macOS teammate's machine, and the reverse;
+- `node --test scripts/` fails on Node 22/24;
+- Node isn't bundled with Claude Code's native installer;
+- `claude --version` on PATH (2.1.220 here) isn't the running version (2.1.289), and 2.1.251 changed what `CLAUDE_CODE_SUBAGENT_MODEL` means;
+- the persona hard-codes Vietnamese;
+- milestone close assumes a web UI: CLI/mobile land in `CONCERNS`, and API-only milestones can `PASS` on in-process tests;
+- the v1.3.1 loopback hint fires only on `ERR_ADDRESS_INVALID`;
+- `next dev` and a Nest/Express `listen()` without a host bind all interfaces;
+- `mongodb.md` was gated only against Django.
+
+**What shipped:**
+- **`scripts/camp.js`** (one file, no dependencies) — `audit`, `copy <file>… [--backup]`, `memsize`, `version`. SKILL.md calls it as `node "${CLAUDE_PLUGIN_ROOT}/scripts/camp.js" …`, the same line in bash, Git Bash, PowerShell and cmd. ✅ Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` (and `${CLAUDE_SKILL_DIR}`) in plugin skills on 2.1.220 and 2.1.289, so the `node -e` plugin-root resolver is gone.
+  - Stamps hash LF text without a BOM; the audit also accepts the raw-bytes hash of ≤1.3.1 stamps, so no existing copy changes state.
+  - `copy` writes LF, creates folders, puts the agent file's stamp on line 2, and refuses to overwrite a `✏️` copy without `--backup`.
+  - `audit` adds `· not installed` for stack rules (Phase 4 decides relevance), `untouched` / `edited or unstamped` on `→ migrate` rows, `hard-codes replies in <L>` on old personas, the persona size and the Claude Code version.
+  - The hook exports its functions (`require.main` guard) and compares realpaths against HOME.
+- **Version check:** minimum Claude Code 2.1.257 (the `fable` alias, `_FORCE`); ⚠️ below 2.1.251 (env overrides every dispatch). The running version comes from `$CLAUDE_CODE_EXECPATH --version`, with an ℹ️ when `claude` on PATH differs. The role-text drift check uses it too.
+- **Language:** the persona replies in the user's language, and a `Working agreements` line pins one. core.md: "The user's language is ONLY for talking to them". Refresh offers a pre-1.4.0 project the pin `- Talk to the user in Vietnamese (date)` as a diff + question whenever it replaces the old persona; new projects get no pin.
+- **Surface-aware close** (`milestone-close.md` step 2): one real-path observation per criterion through its entry point:
+  - web (+ extensions via `--extension`);
+  - an HTTP API on its real DB (not an in-process client);
+  - the built CLI from a clean directory;
+  - Maestro → mobile-mcp on a simulator;
+  - a job triggered the way production does;
+  - a packed library.
+
+  It never installs a surface tool; a missing tool means a manual checklist with ⏳. Step 3: "a unit or in-process test alone never makes a behaviour criterion ✅". readiness asks for per-surface criteria and how each will be observed. Persona and kickcamp say "behaviour change" instead of "user-facing walkthrough".
+- **Loopback ladder** replaces the v1.3.1 hint. Trigger: the browser can't open the app while curl can. Rungs: `127.0.0.1` ↔ `localhost` → `[::1]` (re-serve with a flag; skip on WSL mirrored / IPv6 off) → Playwright or agent-browser `--executable-path` → manual. Plus a flag table (Vite, Next, uvicorn/`fastapi dev`, Django, fastify-cli; `HOST` for in-code hosts) and a namespace rule (a container binds `0.0.0.0` inside, published `-p 127.0.0.1:P:P`; devcontainer/remote → the browser tool runs there).
+- **Scaffold defaults (GREENFIELD only):**
+  - Nest/Fastify/Express `listen(PORT, process.env.HOST ?? '127.0.0.1')`;
+  - `next dev -H 127.0.0.1`;
+  - `.env.example` documents `HOST` and the container case;
+  - `.gitattributes` gets `.claude/** text eol=lf`; `.gitignore` gets `.playwright-mcp/`.
+
+  ADOPT appends those two lines and never edits dev-server code. REFRESH gets an opt-in **Project hygiene** step for them.
+- **Stacks:** `mongodb.md` only for Node/FastAPI backends; an unlisted stack → "create it with its own generator, then `/basecamp adopt`" (core.md only, existing tooling recorded, never installed). README gains a Supported stacks table and a Requirements block (Claude Code ≥2.1.257, Node ≥20).
+- **Smaller:**
+  - core.md: "code-review-graph MCP tools (when available)";
+  - plan-aware tier hints (Balanced on Pro);
+  - printed commands are one per line (no `&&` / `VAR=x cmd`), with PowerShell forms for the escape hatch and the cleanup undo;
+  - rtk/caveman installers marked macOS/Linux / Git Bash;
+  - the stale #23478 claim is corrected (path-scoped rules load on Write since 2.1.288; camp keeps unscoped rules for ≥2.1.257);
+  - `find | grep` became `git ls-files -co --exclude-standard ":(icase,glob)**/architecture*"`.
+- **CI:** `.github/workflows/test.yml` runs ubuntu / macos / windows × Node 20 / 24 with explicit test paths. `.gitattributes` keeps the plugin LF on Windows checkouts.
+
+**Audit parity** (v1.3.1's shell audit vs `camp.js audit`, plugin v1.4.0, copies of the real projects' `.claude/` + `CLAUDE.md`):
+
+| Project | Rows | Same state | States |
+|---|---|---|---|
+| socialcamp | 8 | 8 | stub + persona → migrate · core, 2 workflows ❌ · python.md ✏️ (no stamp) · node/mongodb not installed |
+| scrumcamp | 8 | 8 | same as socialcamp |
+| hobyhunt | 8 | 8 | → migrate ×2 · core, workflows ❌ · stack rules not installed (`backend-python.md` is project-owned, never audited) |
+| kaitri | 8 | 8 | → migrate ×2 · core, workflows ❌ · stack rules not installed |
+| v1.3.1 fixture (shell-stamped, 1 edited, 1 unstamped) | 9 | 9 | 7 ⬆️ · 2 ✏️ |
+| same fixture, `core.autocrlf=true` clone | 9 | 3 | shell: 9 ✏️ (7 false) · camp.js: 7 ⬆️ + the 2 real ✏️ — the intended fix |
+
+**Measured tokens** (first request, MCP and claude-mem off, Artifact off, committed fixtures with identical history, 2 reps, identical):
+
+| Fixture | Main v1.3.1 → v1.4.0 | Sub-agent |
+|---|---|---|
+| socialcamp copy | 28,867 → 28,858 (−9) | 14,160 → 14,152 (−8) |
+| FastAPI (new) | 26,905 → 26,899 (−6) | 12,198 → 12,193 (−5) |
+
+Persona 7,533 → 7,549 chars and core.md 1,551 → 1,550, after trimming two redundant persona parentheticals: the first draft was +289 chars, +90 tokens main. The task-spec line names "acceptance criteria per surface + design reference" explicitly (the v1.2.2 rule); sub-agent deltas of a few tokens also move with commit hashes in gitStatus. On-demand files grow: `milestone-close.md` 4,520 → 6,874 chars (≈+700 tokens per close), `readiness.md` 1,606 → 1,948, kickcamp 2,069 → 2,204. `SKILL.md` grows 64,775 → 66,295 chars (+2.3%) and shrinks 377 → 371 lines; it is loaded only when `/basecamp` runs.
+
+**Behavioural probes** (headless, Claude Code 2.1.289, PmCamp on Opus via `--plugin-dir`):
+
+| Probe | Outcome | Cost · time |
+|---|---|---|
+| Vietnamese question | reply in Vietnamese | $0.23 · 30s |
+| English question | reply in English | $0.23 · 15s |
+| English question + `Talk to the user in Vietnamese` agreement | reply in Vietnamese — the pin wins | $0.22 · 13s |
+| Vietnamese request for an ADR + STATUS line | reply in Vietnamese; ADR 0001 and the STATUS line in English ("ADR viết bằng tiếng Anh theo quy định của repo") | $0.32 · 37s |
+| API close (stdlib notes API; in-process tests green; planted defect: every HTTP response is 200) | started the real server on a temp DB, curl per criterion → AC1/AC3 wrong status (+ a crash on a JSON array body) → `FAIL` → sub-agent fix (TDD, HTTP-level tests) → server restarted, curl again incl. restart persistence → `PASS`, close docs committed on `m1`, not merged | $0.74 · 134s |
+| CLI close (slug CLI; in-process tests green; planted defect: exit code dropped) | ran `slug.py` from a `mktemp -d` → AC2 exit 0 instead of 2 → `FAIL` → sub-agent fix with a subprocess test → re-run from a clean dir → `PASS` | $0.66 · 101s |
+| `/camp:basecamp refresh` on a kaitri copy (v1.2.6 layout, no Working agreements) | ran `camp.js audit` / `version` / `memsize` → `camp.js copy PmCamp.persona.md PmCamp.md rules/core.md workflows/…` (untouched migration) → re-audit all ✅; offered the language pin as a diff (creating `## Working agreements` after `## Project invariants`) with "Keep Vietnamese ★"; offered project hygiene as a diff; cleanup `CLEAN` | $0.83 · 101s |
+
+**Local CI equivalent:** 14/14 tests on macOS × Node 20.19 / 24.21 and Linux (Alpine) × Node 20 / 24. Windows runs only in GitHub Actions.
+
+**Known gaps:**
+- Windows is covered by CI only: no native Windows run of the hook, `camp.js` or a `/basecamp` session yet. PowerShell quoting of the printed commands is untested.
+- The `language` setting (Claude Code's own) wasn't probed; camp pins languages through Working agreements only.
+- Deferred: `extraKnownMarketplaces` / `enabledPlugins` for teammates without the plugin, path-scoped stack rules (needs ≥2.1.288), a per-surface tool audit in Phase 1.

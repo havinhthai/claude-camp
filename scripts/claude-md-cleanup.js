@@ -146,7 +146,7 @@ function main() {
     const bak = path.join(root, '.claude', path.basename(file) + '.bak');
     fs.copyFileSync(file, bak);
     fs.writeFileSync(file, result);
-    console.log(`APPLIED: ${changes.length} change(s) written to ${path.basename(file)}. Backup: .claude/${path.basename(bak)} (undo: mv .claude/${path.basename(bak)} ${path.basename(file)}).`);
+    console.log(`APPLIED: ${changes.length} change(s) written to ${path.basename(file)}. Backup: .claude/${path.basename(bak)} (undo: mv .claude/${path.basename(bak)} ${path.basename(file)} — PowerShell: Move-Item -Force .claude/${path.basename(bak)} ${path.basename(file)}).`);
   }
 }
 

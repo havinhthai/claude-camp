@@ -1,0 +1,19 @@
+name: test
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      # Explicit paths: `node --test <dir>` fails on Node 22+, a quoted glob on Node ≤20.
+      - run: node --test hooks/pmcamp-persona.test.js scripts/camp.test.js scripts/claude-md-cleanup.test.js

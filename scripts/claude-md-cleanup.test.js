@@ -1,4 +1,4 @@
-// node --test scripts/
+// node --test scripts/claude-md-cleanup.test.js
 const test = require('node:test');
 const assert = require('node:assert');
 const { cleanup, GRAPH_STUB } = require('./claude-md-cleanup');
