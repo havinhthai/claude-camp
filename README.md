@@ -9,7 +9,9 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.6-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.7-3fb950.svg)](#)
+
+> **v1.2.7** — PmCamp lives in the main session only: a plugin `SessionStart` hook injects `.claude/PmCamp.persona.md`, so sub-agents stop loading (and impersonating) the PM, and `.claude/PmCamp.md` becomes a 288-char stub. Stack-agnostic rules move to `.claude/rules/core.md`, which reaches every sub-agent. Measured project memory per sub-agent spawn drops 55–70% (e.g. FastAPI 6,315 → 2,456 tokens).
 
 > **v1.2.5** — An on-demand `docs/ARCHITECTURE.md` module map (read before cross-module work) + an always-loaded **Known pitfalls** list (two-strikes, capped at 10) against "fix A, break B"; PmCamp's own ceremony scales with Superpowers' Bounded classification — tests, impact analysis, and verification are never skipped.
 
@@ -58,7 +60,7 @@ In Claude Code:
 /plugin install camp@claude-camp
 ```
 
-That's it — `/basecamp` and `/kickcamp` are now available in every project. No cloning, symlinking, or file-permission setup.
+That's it — `/basecamp` and `/kickcamp` are now available in every project. The persona hook needs `node` on your PATH. No cloning, symlinking, or file-permission setup.
 
 Update later with:
 
@@ -72,7 +74,7 @@ Update later with:
 | --- | --- |
 | `/basecamp` | Bootstrap a project. Audits and installs the global toolkit, scaffolds to the chosen stack, and writes `CLAUDE.md` + the PmCamp persona. Runs in **greenfield** mode (new) or **adopt** mode (existing codebase). |
 | `/basecamp adopt` | Force adopt mode for an existing codebase — detect the stack, build the code graph, scaffold only what's missing, never overwrite. |
-| `/basecamp refresh` | Sync project-local copies (`PmCamp.md`, `rules/`) with the installed plugin version; user-modified files are never overwritten without confirmation. |
+| `/basecamp refresh` | Sync project-local copies (`PmCamp.md`, `PmCamp.persona.md`, `rules/`) with the installed plugin version, migrating pre-1.2.7 projects to the hook-injected persona; user-modified files are never overwritten without confirmation. |
 | `/kickcamp <doc>` | Hand a requirements doc to PmCamp: triage → milestones (you confirm) → build via sub-agents → **verify** (tests + git + acceptance, plus a product walkthrough for UI work) → report. |
 
 ## How it works
@@ -120,9 +122,11 @@ If an install is blocked by a permission or classifier prompt, `/basecamp` print
 
 ## The PmCamp persona
 
-`PmCamp.md` in this repository is the **single source of truth** for the PM's behaviour. During scaffolding, `/basecamp` copies it from the plugin directory (`${CLAUDE_PLUGIN_ROOT}/PmCamp.md`) into the project's `.claude/PmCamp.md`, version-stamped so drift is detectable. (If the plugin directory can't be resolved, `/basecamp` warns and prints the manual copy command instead of writing a substitute.)
+`PmCamp.persona.md` in this repository is the **single source of truth** for the PM's behaviour. `/basecamp` copies it into the project's `.claude/PmCamp.persona.md`, version-stamped so drift is detectable, and the plugin's `SessionStart` hook injects it into the **main session only** — at startup, resume, `/clear` and after `/compact`, even when the session starts in a subdirectory. Sub-agents never receive it; they see `.claude/PmCamp.md`, a short stub that root `CLAUDE.md` imports. If hooks are off, the stub tells the main session to Read the persona itself. A persona over 9,500 characters isn't injected — past 10,000 Claude Code would hand the model only a 2k-character preview — so the PM is told to Read the file and to warn you instead.
 
-To change how the PM behaves — verification, communication style, state handling — edit `PmCamp.md` here, commit, and push. Every later `/basecamp` picks up the new version; existing projects sync their copies with `/basecamp refresh` (untouched copies update automatically, user-edited ones only with confirmation).
+If the plugin directory can't be resolved, `/basecamp` finds the camp install in `~/.claude/plugins/installed_plugins.json` and copies from there; it prints a manual copy command only when nothing resolves.
+
+To change how the PM behaves — verification, communication style, state handling — edit `PmCamp.persona.md` here, commit, and push. Every later `/basecamp` picks up the new version; existing projects sync their copies with `/basecamp refresh` (untouched copies update automatically, user-edited ones only with confirmation). On projects set up before v1.2.7, refresh moves the persona out of `.claude/PmCamp.md` into `PmCamp.persona.md` and writes the stub — if you had edited it, it asks first and keeps your edits byte for byte.
 
 For user-facing milestones, verification goes beyond tests: PmCamp builds and runs the product, walks the primary user flows end-to-end, and checks UI states (empty/loading/error/validation) against `DESIGN.md` before calling anything done.
 
@@ -149,11 +153,16 @@ claude-camp/
 │   │   └── SKILL.md         # /basecamp
 │   └── kickcamp/
 │       └── SKILL.md         # /kickcamp
+├── hooks/
+│   ├── hooks.json           # SessionStart → inject the persona (main session only)
+│   └── pmcamp-persona.js
 ├── rules/                   # bundled convention rules (copied into .claude/rules/)
+│   ├── core.md              # every project: English-only, graph before Grep, impact analysis
 │   ├── node.md              # Node backend (NestJS/Fastify/Express)
 │   ├── python.md            # Python backend (FastAPI)
 │   └── mongodb.md           # MongoDB data modeling (Mongoose/Beanie)
-├── PmCamp.md                # PM persona (canonical)
+├── PmCamp.persona.md        # PM persona (canonical)
+├── PmCamp.md                # stub imported by project CLAUDE.md
 ├── UPGRADES.md              # roadmap / backlog
 ├── LICENSE                  # MIT
 └── README.md

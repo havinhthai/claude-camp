@@ -4,12 +4,7 @@ description: MongoDB data-modeling conventions — Mongoose (Node) / Beanie (Pyt
 
 # MongoDB rules
 
-ODM by language: **Mongoose** (Node) · **Beanie** (Python). One schema per file in **`src/schemas/`** (this centralized convention is **MongoDB-only** — SQL ORMs keep their own).
-
-## Schema location
-- Node (Mongoose): `src/schemas/<domain>.schema.ts`. **NestJS:** define with `@Schema()`/`@Prop()` + `SchemaFactory.createForClass`, register per module via `MongooseModule.forFeature([{ name, schema }])`; root connection `MongooseModule.forRootAsync` in `app.module.ts`.
-- Python (Beanie): `src/schemas/<domain>.py` (Beanie `Document`), registered in `init_beanie(document_models=[...])`.
-- SQL ORMs do NOT use `src/schemas/` — Prisma `prisma/schema.prisma`, Drizzle `src/db/schema.ts`, SQLModel/SQLAlchemy the models module.
+ODM by language: **Mongoose** (Node) · **Beanie** (Python). One schema per file in **`src/schemas/`** — location + registration per the backend rule file (`node.md` / `python.md`). **NestJS:** define with `@Schema()`/`@Prop()` + `SchemaFactory.createForClass`.
 
 ## Data modeling
 - **Design for query patterns first** — model around how data is read, not normalized tables.
@@ -18,11 +13,6 @@ ODM by language: **Mongoose** (Node) · **Beanie** (Python). One schema per file
 - **Schema-level validation** — enforce required/types/enums at the schema (Mongoose validators / Beanie+Pydantic), not only at the app edge.
 - **Soft-delete:** `deletedAt` field; never hard-delete by default; exclude soft-deleted in default queries.
 - **Timestamps:** `createdAt` / `updatedAt` on every collection (Mongoose `{ timestamps: true }`; Beanie via fields/hooks).
-- **One schema per file** in `src/schemas/`.
 
 ## Connection + env
-- Connection/init module wired into app startup (Mongoose `connect` in `db/`; Beanie `init_beanie` in `db.py`).
-- `MONGODB_URI` (+ DB name) from `.env` — never hardcoded. Ship `.env.example` + a local MongoDB `docker-compose.yml`.
-
-## Change discipline
-- **Impact analysis before changing a shared schema** — schemas in `src/schemas/` are cross-module. Before editing a field / index / validator, query code-review-graph for every module that imports the schema and verify their tests, not only the one that triggered the change.
+- `MONGODB_URI` (+ DB name) from `.env`, never hardcoded; connection wired into app startup (Mongoose `connect` in `db/` · Beanie `init_beanie` in `db.py`). Ship `.env.example` + a local MongoDB `docker-compose.yml`.

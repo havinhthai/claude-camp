@@ -4,7 +4,7 @@ description: FastAPI backend conventions — module-based, layered, async, typed
 
 # FastAPI backend rules
 
-Module-based, FastAPI idiom. Layered per domain: **router → service → repository**. `router.py` IS the handler — no separate controller. **No file prefix.**
+Module-based, FastAPI idiom, layered per domain: **router → service → repository**. `router.py` IS the handler — no separate controller.
 
 ## Directory structure
 ```
@@ -28,7 +28,7 @@ backend/
 
 ## Naming (decided)
 - `schemas/` = **DB models** (Beanie `Document`). `dto.py` = **validation** (Pydantic request/response). `router.py` = handler. NO file prefix.
-- One concern per file. `modules/` starts empty except the `health` sample; feature modules arrive via `/kickcamp`.
+- One concern per file.
 
 ## Schema location (DB-aware — important)
 - **MongoDB + Beanie only** → shared `src/schemas/<domain>.py` (Beanie `Document`), all classes registered in `init_beanie(document_models=[...])` in `db.py`.
@@ -43,5 +43,3 @@ backend/
 - Layered: `router.py` handles HTTP + validation only → `service.py` holds logic → `repository.py` owns data access. No DB calls in routers.
 - Validate at the edge: `dto.py` Pydantic models for every request/response.
 - Tests mirror source tree under `tests/`.
-- **All code is English** — identifiers (variables, functions, classes, files), comments, docstrings, log messages, commit messages — and so are agent-written repo docs (`docs/ARCHITECTURE.md`, ADRs, `docs/STATUS.md`, Known pitfalls). User-authored requirement docs stay as written. Vietnamese is used ONLY for talking to the user (PmCamp communication) — NEVER in code or agent-written artifacts.
-- **Impact analysis before changing shared code** — before editing a function / type / schema / API used elsewhere, query code-review-graph for its dependents and verify the impacted callers' tests, not only tests near the changed file.

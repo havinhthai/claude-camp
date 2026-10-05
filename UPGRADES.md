@@ -210,6 +210,43 @@ sober as an optional CI gate; Strix as an optional pre-launch pentest.
 
 Add to session hygiene: check for leftover sessions (`ps`) and reload VS Code.
 
-## 23. PmCamp token diet (backlog)
+## 23. PmCamp token diet ✅ v1.2.7
 
-Always-loaded context is ≈5k tokens on Node+Mongo, and impact analysis is described in 4 files. Trim to one owner per rule; the v1.2.6 probe (subagents load PmCamp and can take on the PM role) feeds this.
+Done in #24. The "≈5k tokens on Node+Mongo" estimate here was characters ÷ 4. Measured, a v1.2.6 Node+Mongo sub-agent carried **7,608 tokens** of project memory: camp's markdown runs ≈2.5 chars/token on Opus/Sonnet 5.5, not 4, so every earlier ÷4 figure was ~1.6× too low.
+
+## 24. Main-session-only PmCamp + core rules + diet ✅ v1.2.7
+
+**Problem:** sub-agents loaded the whole persona through CLAUDE.md's `@.claude/PmCamp.md` import — 3/3 probed general-purpose sub-agents answered "I am PmCamp… I don't write the code myself" — paying ~3.2k tokens per spawn for a role they must not play. And projects set up before v1.2.4 never got the English-only and impact-analysis rules to their sub-agents: refresh never touches CLAUDE.md, and with the persona main-only, `.claude/rules/` is the one channel that reaches them.
+
+- **Persona via plugin `SessionStart` hook:** `hooks/hooks.json` (matchers `startup|resume|clear|compact`) runs `hooks/pmcamp-persona.js` with node, like ponytail's hooks (no POSIX shell syntax, so it ports to Windows). It walks from `$CLAUDE_PROJECT_DIR` up to the git root for `.claude/PmCamp.persona.md`. No file → no output. Found → JSON `hookSpecificOutput.additionalContext` (stamp line stripped, one-line header). Silent on any error (EPIPE included); never walks above `$HOME`; strips a BOM; skips an empty persona; resolves a symlinked project dir. ~40 ms.
+  - Over 9,500 characters → not injected. Claude Code replaces an `additionalContext` longer than 10,000 (UTF-16 `.length`, per the binary) with a 2k-char preview plus a file path. The limit applies to the parsed context, not raw stdout (a 12,106-byte stdout carrying 9,671 chars arrived intact). The hook measures the persona the same way, so persona + header stays ≤ 9,671. Instead of the persona, the PM gets a short instruction to Read the file and the user gets a `systemMessage`.
+  - Resume: Claude Code skips re-adding identical hook context (measured on 2.1.289 and 2.1.220), so the script needs no guard.
+- **Stub + migration:** `.claude/PmCamp.md` is a 288-char stub (main session: Read the persona if it isn't in context; sub-agents: ignore it). Root CLAUDE.md is untouched — its import now loads the stub. Plugin files mirror the project copies 1:1 (`PmCamp.md` = stub, `PmCamp.persona.md` = persona); both are stamped, audited, and refreshed. Refresh migrates pre-v1.2.7 layouts (persona file missing, PmCamp.md stamped older than 1.2.7 or unstamped): untouched → stamped persona first, then the stub; edited → AskUserQuestion "Migrate (keep your edits)" (`mv`, bytes unchanged) · "Keep mine" · "Show diff". `/kickcamp` Reads the persona before intake if it isn't in context.
+- **`rules/core.md`** — every project, any stack, never gated by ADOPT's Conventions question: English-only, graph before Grep, impact analysis before shared-code edits (full detail; jq a saved result), key graph tools. Removed from the template, `node.md`, `python.md`, `mongodb.md`. Refresh adds it to existing projects as `❌ missing`.
+- **Diet (every rule kept):**
+  - Template Model routing → one line; the why, escape hatches, and pinning sit in an HTML comment in the same CLAUDE.md. HTML comments and rules frontmatter are stripped before injection (0 tokens — verified for CLAUDE.md and `.claude/rules/`).
+  - PM-only lines (spawn policy, plugin-copy note) moved into the persona; the ponytail note, "≤150 lines", and the karpathy/Superpowers note became HTML comments.
+  - Persona: rationale-only sentences dropped — their why already lives here (#12 UX bar, #14 TDAD) — and self-repeats merged (impact, architecture, STATUS). 8,632 → 7,574 chars.
+  - Rules lose duplicates and scaffold-time notes (`modules/ starts empty…`; NestJS-Biome workaround → HTML comment; `mongodb.md` defers schema location to the backend rule file). Loaded chars: node 3,163 → 2,281 · python 2,674 → 1,927 · mongodb 2,072 → 1,249; core.md 1,384.
+- **Plugin root:** an unresolved `${CLAUDE_PLUGIN_ROOT}` → a node one-liner reads `~/.claude/plugins/installed_plugins.json` (enabled entries only; this repo's project scope first, then user; `installPath` must exist) and basecamp copies + stamps from there. It prints the manual command only when nothing resolves.
+- **Phase 1 audit:** caveman — checks what is ACTIVE (registered hooks and their scripts, `statusLine` target, user CLAUDE.md rules, `caveman-shrink` MCP); always-on → warn + uninstall / `--minimal`; dangling references reported. Browser — Playwright MCP and agent-browser both present → reported; agent-browser stays the walkthrough default, Playwright the fallback (PmCamp's walkthrough line says so). Persona size is checked by running the hook itself (a C-locale `wc -m` counts bytes and disagreed by ~70).
+- **Measured** — first-request input tokens of project memory (Opus 5.5 main · Sonnet 5.5 sub-agent), tools pinned and skills off so only memory differs, empty-project baseline subtracted in the same batch. Main includes the hook-injected persona (2,832 tokens). Unpinned totals were unusable: Claude Code's built-in Artifact tool alone varied 54.8k–78.9k chars between sessions.
+
+  | Project | Sub-agent v1.2.6 → v1.2.7 | Main v1.2.6 → v1.2.7 |
+  |---|---|---|
+  | FastAPI (new) | 6,315 → 2,456 (−61%) | 6,320 → 5,288 |
+  | NestJS + SQL (new) | 6,605 → 2,745 (−58%) | 6,607 → 5,574 |
+  | NestJS + MongoDB (new) | 7,608 → 3,414 (−55%) | 7,614 → 6,247 |
+  | FE-only (new) | 5,135 → 1,546 (−70%) | 5,138 → 4,376 |
+  | Django (new) | 5,144 → 1,555 (−70%) | 5,146 → 4,384 |
+  | socialcamp (refresh only) | 7,464 → 5,202 (−30%) | 7,583 → 8,150 (+567: core.md adds rules its pre-v1.2.4 CLAUDE.md lacked) |
+- **Verified (Claude Code 2.1.289, the VS Code extension's binary):** canary at the persona's first and last line — main sees both, the sub-agent sees none and answers as an implementer; hooks off → main Reads the persona and answers as PmCamp; `/compact` re-injects once (one copy afterwards); start in a subdirectory → injected; 9,500-char persona → intact; 9,600 → Read instruction + warning. Migration on copies of socialcamp: untouched → exactly 3 files changed (stub, persona, core.md; 3,288 others byte-identical); edited → persona byte-identical to the user's file. Old @import vs new hook, 3-turn `/kickcamp` on a change to a function two modules share (4 runs per arm over two rounds, real code-review-graph MCP): no difference. In 8/8 the PM wrote no code itself, `callers_of` + `tests_for` ran before the first edit of the shared function, and the PM re-ran the suite itself. With git allowed (round 2), every turn 1 raised the 70% clearance discount the cap would change as a 🟡 decision, and every final report cited the real commit hashes. In round 1, a global rtk hook rewrote `git` past the headless allowlist and all 4 PMs refused to call the milestone done without a commit.
+- **Known gaps:** the hook needs `node` on PATH (Phase 1 checks it; without it every session start shows a hook error and the stub makes the PM Read the persona); teammates without the camp plugin get only the stub, which points them to the persona file; `/clear` wasn't probed (headless can't send it — same hook path as startup); the hook hasn't run on Windows; projects that only refresh keep their old CLAUDE.md lines (re-run `/basecamp` to merge the slimmer template).
+
+## 25. Built-in Artifact tool cost per spawn (backlog, v1.2.8)
+
+The Artifact tool's definition is 54.8k–78.9k chars and loads into every sub-agent — more than all of camp's memory combined. Recon: a camp agent with `disallowedTools: [Artifact]` measured 40,040 → 28,291 tokens per spawn with Skill and MCP intact. Check first how Superpowers dispatches sub-agents.
+
+## 26. `python.md` reads as Beanie-first (backlog)
+
+On socialcamp, refresh's agent called the plugin `python.md` "written for MongoDB" (its tree shows `schemas/` + `db.py # Beanie/Motor init`) and recommended keeping the project's SQLModel copy. Split the tree's Mongo-only lines visually, or show the SQL layout first.

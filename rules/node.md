@@ -4,7 +4,7 @@ description: Node backend conventions (NestJS / Fastify / Express) — module-ba
 
 # Node backend rules
 
-Module-based. Layered per domain: **controller/route → service → repository**. Validate at the edge, keep modules small, no business logic in routes.
+Module-based, layered per domain: **controller/route → service → repository**. Keep modules small.
 
 ## Directory structure
 
@@ -30,7 +30,7 @@ backend/src/
 
 ## File naming
 - `<domain>.` prefix on every module file (`user.controller.ts`, `user.service.ts`, `user.repository.ts`).
-- One concern per file. `modules/` starts empty except the `health` sample; feature modules arrive via `/kickcamp`.
+- One concern per file.
 
 ## Schema location (DB-aware — important)
 - **MongoDB + Mongoose only** → shared `src/schemas/<domain>.schema.ts`. NestJS: register per module via `MongooseModule.forFeature([{ name, schema }])` in `<domain>.module.ts`; root connection via `MongooseModule.forRootAsync` in `app.module.ts`.
@@ -38,12 +38,10 @@ backend/src/
 
 ## Tooling
 - TypeScript **strict**, **pnpm**, **Vitest**. Scripts: `dev` / `build` / `typecheck` / `test` / `lint`.
-- **Linter/formatter:** Biome for **Fastify/Express**. **NestJS keeps ESLint + Prettier** (Nest default) — Biome's `useImportType` rewrites DI value-imports to `import type` and breaks decorator metadata at runtime. (If Biome is forced on NestJS: disable `lint/style/useImportType` and set `verbatimModuleSyntax: true`.)
+- **Linter/formatter:** Biome for **Fastify/Express**. **NestJS keeps ESLint + Prettier** (Nest default) — Biome's `useImportType` rewrites DI value-imports to `import type` and breaks decorator metadata at runtime. <!-- If Biome is forced on NestJS: disable `lint/style/useImportType` and set `verbatimModuleSyntax: true`. -->
 - Logging: **Pino**. Validate env at startup. Centralized error handling. **No hardcoded secrets** — read from env.
 
 ## Clean code
 - Layered: controller/route handles HTTP only → service holds logic → repository owns data access. No DB calls in controllers.
 - Validate at the edge: NestJS `dto/` (class-validator); Fastify/Express `<domain>.validation.ts` (zod / JSON schema).
 - Tests mirror source tree.
-- **All code is English** — identifiers (variables, functions, classes, files), comments, docstrings, log messages, commit messages — and so are agent-written repo docs (`docs/ARCHITECTURE.md`, ADRs, `docs/STATUS.md`, Known pitfalls). User-authored requirement docs stay as written. Vietnamese is used ONLY for talking to the user (PmCamp communication) — NEVER in code or agent-written artifacts.
-- **Impact analysis before changing shared code** — before editing a function / type / schema / API used elsewhere, query code-review-graph for its dependents and verify the impacted callers' tests, not only tests near the changed file.
