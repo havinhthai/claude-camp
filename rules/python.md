@@ -1,8 +1,8 @@
 ---
-description: Python backend conventions (FastAPI) — module-based, layered, async, typed
+description: FastAPI backend conventions — module-based, layered, async, typed (not for Django)
 ---
 
-# Python backend rules
+# FastAPI backend rules
 
 Module-based, FastAPI idiom. Layered per domain: **router → service → repository**. `router.py` IS the handler — no separate controller. **No file prefix.**
 

@@ -37,7 +37,7 @@ Global tooling — report `✅ present` / `❌ missing` for each:
 
 This project — check: git repo + commit history, existing `CLAUDE.md`, `.claude/` dir, code-review-graph (and whether its auto-update hooks are registered). ALSO detect whether this is an EXISTING codebase: real source files, a package manifest (package.json / pyproject.toml / requirements.txt / go.mod …), lockfiles, established dirs.
 
-Project-local plugin copies — `.claude/PmCamp.md` + each `.claude/rules/<name>.md` whose `<name>.md` exists in `${CLAUDE_PLUGIN_ROOT}/rules/` are COPIES of plugin files (plugin-loaded skills update themselves; copies go stale). Any other `.claude/rules/*.md` is project-owned — never audit, flag, or refresh it. Compare each copy against `${CLAUDE_PLUGIN_ROOT}` (plugin version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). Copies carry a first-line stamp `<!-- claude-camp: <file> v<X> · sha256:<12-hex> -->`; check the body with `tail -n +2 <copy> | shasum -a 256 | cut -c1-12` against the stamp's hash. Report one row per file in the audit table: `✅ current` (stamp version == plugin version) · `⬆️ outdated` (stamp version < plugin version AND body hash matches the stamp — untouched copy) · `✏️ user-modified` (hash mismatch, or no stamp — pre-v1.2.3 copies) · `❌ missing`.
+Project-local plugin copies — `.claude/PmCamp.md` + each `.claude/rules/<name>.md` whose `<name>.md` exists in `${CLAUDE_PLUGIN_ROOT}/rules/` are COPIES of plugin files (plugin-loaded skills update themselves; copies go stale). Any other `.claude/rules/*.md` is project-owned — never audit, flag, or refresh it. Compare each copy against `${CLAUDE_PLUGIN_ROOT}` (plugin version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). Copies carry a first-line stamp `<!-- claude-camp: <file> v<X> · sha256:<12-hex> -->`; check the body with `tail -n +2 <copy> | shasum -a 256 | cut -c1-12` against the stamp's hash. Report one row per file in the audit table: `✅ current` (stamp version == plugin version) · `⬆️ outdated` (stamp version < plugin version AND body hash matches the stamp — untouched copy) · `✏️ user-modified` (hash mismatch, or no stamp — pre-v1.2.3 copies) · `❌ missing` (only a stack-relevant file per Phase 4 — never a rule file that CLAUDE.md records as declined via ADOPT's "Follow existing").
 
 Decide the MODE (see <mode>): existing codebase → ADOPT (confirm with the user if they didn't ask for it); otherwise GREENFIELD. State the chosen mode.
 
@@ -52,9 +52,10 @@ FALLBACK: if AskUserQuestion is unavailable, run the SAME structure as a typed c
 Resolution rules (apply in EVERY mode — unchanged; only the UX changed):
 - Defaults (★): Frontend = React+Vite · Backend = FastAPI (overall default) / NestJS (the Node default) · Database = PostgreSQL · JS pkg = pnpm · Python tool = uv · CI = on · Design system = None · Model tier = Premium (opus PM · sonnet subagents).
 - GUARD: Frontend = None AND Backend = None is invalid — re-ask gracefully until ≥1 stack is chosen.
-- Auto-resolved, NEVER asked: Layout (both stacks → monorepo `backend/`+`frontend/`; single stack → root or `src/`, no empty sibling). ORM/ODM (MongoDB → Mongoose (Node) / Beanie (Python); SQL → Prisma ★ / Drizzle (Node) or SQLModel ★ / SQLAlchemy (Python)). Quality per language present: Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, EXCEPT NestJS which keeps its shipped ESLint + Prettier (Biome `useImportType` breaks NestJS DI; see Phase 4); FE → eslint + prettier + vitest; Husky + lint-staged for whichever stacks exist.
+- GUARD: Django + MongoDB is never picked (claude-camp scaffolds Django on SQL with the Django ORM; `mongodb.md` is Beanie-specific) — the Database step doesn't offer MongoDB for Django; if arguments, a description, or a typed "Other" produce the pair, say so and re-ask the Database step. ADOPT keeps the pair when the codebase uses it (Phase 4).
+- Auto-resolved, NEVER asked: Layout (both stacks → monorepo `backend/`+`frontend/`; single stack → root or `src/`, no empty sibling). ORM/ODM (MongoDB → Mongoose (Node) / Beanie (FastAPI); SQL → Prisma ★ / Drizzle (Node), SQLModel ★ / SQLAlchemy (FastAPI), Django ORM (Django — never SQLModel/SQLAlchemy; connection via Django's `DATABASES` setting + `DATABASE_URL` in `.env.example`, no separate connection module)). Quality per language present: Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, EXCEPT NestJS which keeps its shipped ESLint + Prettier (Biome `useImportType` breaks NestJS DI; see Phase 4); FE → eslint + prettier + vitest; Husky + lint-staged for whichever stacks exist.
 
-**ADOPT mode:** do NOT run the picker. DETECT the stack from the code — manifests, deps, dirs (frontend/backend), lockfiles, test runner, linter. Model tier: read existing `.claude/settings.json` — if its `model` + `env.CLAUDE_CODE_SUBAGENT_MODEL` already map to a tier, report that tier; else default Premium. Then ONE AskUserQuestion (header "Detected"): "Detected: <stack summary + model tier>. Use as-is?" → "Use as-is" (★) · "Change". "Change" → the CHANGE picker below (re-ask only ambiguous fields; "Tooling / Model tier" covers the tier). Never ask what the code already answers. Then skip to Phase 3. The rest of this phase is GREENFIELD only.
+**ADOPT mode:** do NOT run the picker. DETECT the stack from the code — manifests, deps, dirs (frontend/backend), lockfiles, test runner, linter (Django = `manage.py` or a `django` dependency — it then gets the same Django handling as a picked Django backend). Model tier: read existing `.claude/settings.json` — if its `model` + `env.CLAUDE_CODE_SUBAGENT_MODEL` already map to a tier, report that tier; else default Premium. Then ONE AskUserQuestion (header "Detected"): "Detected: <stack summary + model tier>. Use as-is?" → "Use as-is" (★) · "Change". "Change" → the CHANGE picker below (re-ask only ambiguous fields; "Tooling / Model tier" covers the tier). Never ask what the code already answers. Then skip to Phase 3. The rest of this phase is GREENFIELD only.
 
 **ARGUMENT bypass (greenfield):** if $ARGUMENTS already names a stack — framework words (`vite nestjs mongo`, `next fastapi postgres`) OR legacy letter codes (`1A 2C 3D`) — PARSE it, skip ALL pickers, jump straight to CONFIRMATION. Legacy letter map (keep parsing for backward-compat): 1 Frontend A=React+Vite B=Next.js C=None · 2 Backend A=FastAPI B=Django C=NestJS D=Fastify E=Express F=None · 3 DB A=PostgreSQL B=MySQL C=SQLite D=MongoDB E=Other · 4 JSpkg A=pnpm B=npm C=yarn · 5 Pytool A=uv B=poetry C=pip · 6 Quality A=Default+CI B=Default,noCI C=Custom · 7 Design A=None B=Apple C=Coinbase D=Notion E=Claude F=Clay. Free-typed natural-language answers are also accepted. Model tier in arguments: accept the natural-language tier words `flagship` / `premium` / `balanced` / `economy` anywhere in $ARGUMENTS; if none given, tier defaults to Premium.
 
@@ -71,7 +72,7 @@ CONDITIONAL CHAIN (Customize) — one AskUserQuestion per step (clickable, never
    - Node → "NestJS ★" · "Fastify" · "Express".
    - Python → "FastAPI ★" · "Django".
    GUARD CHECK here: if Frontend = None AND Backend = None, re-ask gracefully (re-open Frontend or Backend) until ≥1 stack chosen.
-3. Database (header "Database") — ONLY if Backend ≠ None: "PostgreSQL ★" · "MongoDB" · "SQLite" · "Other". The auto "Other" lets the user TYPE any DB (e.g. MySQL) — that typed value IS the free-text follow-up; no extra question.
+3. Database (header "Database") — ONLY if Backend ≠ None: "PostgreSQL ★" · "MongoDB" · "SQLite" · "Other"; Django → "PostgreSQL ★" · "SQLite" · "Other" (no MongoDB — see GUARD). The auto "Other" lets the user TYPE any DB (e.g. MySQL) — that typed value IS the free-text follow-up; no extra question.
 4. Tooling (header "Tooling") — "Defaults: pnpm + GitHub Actions CI{ + uv if Python}. Keep?" → "Keep ★" · "Customize". On Customize, batch the overrides in ONE AskUserQuestion call (independent): JS pkg ("pnpm ★" · "npm" · "yarn"), CI ("On ★" · "Off"), and — ONLY if Backend is Python — Python tool ("uv ★" · "poetry" · "pip").
 5. Model tier (header "Model tier") — sets the PM model + the FORCED subagent model, written to `.claude/settings.json` in Phase 4. Exactly 4 options (fits the cap):
    - "Premium ★" — opus PM · sonnet subagents (the default).
@@ -130,7 +131,7 @@ Install ONLY what Phase 1 found missing. Ask before each global change. `/plugin
   code-review-graph install --platform claude-code --no-instructions
   code-review-graph build
   ```
-  `install --platform claude-code` registers BOTH the MCP server AND auto-update hooks — confirm with `code-review-graph status`. Do NOT enable watch mode — hooks are event-driven and cost nothing when idle. Optional: install `uv` so the generated MCP config uses `uvx`. `--no-instructions` skips only the ~40-line tool guide it would append to CLAUDE.md (and its default-yes [Y/n] prompt) — the template's Tool-usage lines name the key tools instead; MCP server, hooks, and its on-demand graph skills still install. Existing installs are unaffected: a CLAUDE.md that already has the appended section keeps it (delete it by hand to reclaim ~500 tokens). The flag needs code-review-graph ≥2.3.0 (`code-review-graph --version`) — upgrade an older install first (`pipx upgrade code-review-graph`, or `uv tool upgrade code-review-graph`).
+  `install --platform claude-code` registers BOTH the MCP server AND auto-update hooks — confirm with `code-review-graph status`. Do NOT enable watch mode — hooks are event-driven and cost nothing when idle. Optional: install `uv` so the generated MCP config uses `uvx`. `--no-instructions` skips only the ~40-line tool guide it would append to CLAUDE.md (and its default-yes [Y/n] prompt) — the template's Tool-usage lines name the key tools instead; MCP server, hooks, and its on-demand graph skills still install. Existing installs are unaffected: a CLAUDE.md that already has the appended section keeps it. Delete that section (~500 tokens) ONLY after copying the template's "Key graph tools" line into that CLAUDE.md — older projects otherwise lose the tool names, since PmCamp now points to CLAUDE.md for them. The flag needs code-review-graph ≥2.3.0 (`code-review-graph --version`) — upgrade an older install first (`pipx upgrade code-review-graph`, or `uv tool upgrade code-review-graph`).
 
 - **rtk** (optional, command-output compression) — if `rtk gain` failed in Phase 1 AND user wants it (skip if RTK.md already in `~/.claude`). Install (idempotent — brew/curl no-op if present):
   ```
@@ -166,8 +167,8 @@ Version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`; the hash covers
 - `✅ current` → skip silently (idempotent — unchanged behavior).
 - `⬆️ outdated` AND untouched (body hash matches its stamp) → refresh (re-copy + new stamp) and say so: "Updated .claude/PmCamp.md → v<new>".
 - `✏️ user-modified` — or unprovable (no/garbled stamp) → NEVER overwrite without explicit confirmation. AskUserQuestion (header "PmCamp" for the persona, "Rules" for rule files; batch files sharing a state into ONE question, ≤4 options): "Update <file(s)> to v<new>?" → "Keep mine ★" · "Show diff" · "Overwrite (back up to <file>.bak)". "Show diff" prints the copy-vs-plugin diff, then re-asks. On Overwrite, write `<file>.bak` FIRST, then re-copy + stamp.
-- `❌ missing` → copy fresh + stamp (existing behavior).
-Fallback-template writes (plugin root unresolvable) go UNSTAMPED — a later refresh treats them as user-modified, the safe default.
+- `❌ missing` → copy fresh + stamp (existing behavior; in ADOPT, stack rule files only after the Conventions check below).
+`${CLAUDE_PLUGIN_ROOT}` unresolvable → warn, skip PmCamp.md and the rule files alike, and print the stamped copy command above — only for `❌ missing` / `⬆️ outdated` files, never a `✏️ user-modified` one; rule files prefixed with `mkdir -p .claude/rules && ` — with `<plugin source>` = `<installPath>/PmCamp.md` or `<installPath>/rules/<name>.md` and `<plugin version>` = `version`, both from the `camp@<marketplace>` entry of `claude plugin list --json`. Never hand-write them.
 
 **ADOPT mode — STRICTLY ADDITIVE (never overwrite existing code/config):**
 - Generate the root `CLAUDE.md` FROM the detected stack (describe what's actually there — do NOT fabricate). If a `CLAUDE.md` already exists, MERGE: add the `@.claude/PmCamp.md` import + any missing sections, show a diff, never clobber their content.
@@ -175,9 +176,11 @@ Fallback-template writes (plugin root unresolvable) go UNSTAMPED — a later ref
 - Create `docs/`, `docs/requirements/`, `docs/adr/` + the ADR template ONLY if missing.
 - Architecture doc — detect an existing one first: `find . -maxdepth 3 -iname 'architecture*' | grep -v -e '/node_modules/' -e '/\.git/'` (empty output = none; a command error is not), plus a `## Architecture` heading in CLAUDE.md (case-insensitive). Found → if its first line is `Verified at …` it's PmCamp's own (leave it); otherwise aim the CLAUDE.md `docs/ARCHITECTURE.md` pointer line at it, replacing its "(created once …)" note with "(user-owned)" — Phase 5 ORIENT offers additions to it as a diff, NEVER overwrites. None → Phase 5 ORIENT drafts `docs/ARCHITECTURE.md` (≥2 domain modules only).
 - Reflect the project's EXISTING quality tooling (detected linter/test runner) in CLAUDE.md — do NOT impose a new one. If there is NO quality setup at all, OFFER to add it; don't force.
-- Do NOT create stack folders, configs, `.env.example`, or `.gitignore` that already exist. For `.gitignore`, APPEND missing entries (graph DB, claude-mem store) — don't rewrite.
+- Do NOT create stack folders, configs, `.env.example`, or `.gitignore` that already exist. For `.gitignore`, APPEND missing entries (graph DB, claude-mem store, `.claude/**/*.bak`) — don't rewrite. Prettier detected (a `.prettierrc*` / `prettier.config.*`, a `prettier` dependency or key in package.json, or a lint-staged rule calling prettier) → create `.prettierignore` or APPEND `.claude/` to it (see the GREENFIELD Quality bullet for why).
 - Write/merge `.claude/settings.json` with the chosen model tier — SAME merge + conflict rules as the greenfield bullet below (preserve all other keys; differing `model` / `env.CLAUDE_CODE_SUBAGENT_MODEL` → AskUserQuestion "Keep existing" · "Apply <tier>"; matching values stay silent).
-- Seed/refresh `.claude/rules/` via the **Plugin-copy refresh** block above. Skip every greenfield step below that would re-create something the repo already has.
+- Stack rule files (which ones: the GREENFIELD `.claude/rules/` bullet; Django gets none — skip this bullet) — first compare the detected layout with our module-based structure. Matches → seed/refresh them via the **Plugin-copy refresh** block above. Differs → ONE AskUserQuestion (header "Conventions"): "Existing layout: <detected>. Conventions for NEW code?" → "Follow existing ★" · "Adopt claude-camp structure". "Follow existing" → skip the stack rule files (the CLAUDE.md template still carries English-only + impact analysis) and record the detected conventions briefly in CLAUDE.md (one `- Conventions: …` line under Stack, noting the stack rules were declined). "Adopt claude-camp structure" → as on a match. Never re-ask a made choice: a `Conventions:` line in CLAUDE.md = Follow existing; stack-rule copies already in `.claude/rules/` before this run = Adopt. Never restructure existing code either way.
+- Django + MongoDB detected → don't copy `mongodb.md` (Beanie-specific); note that on CLAUDE.md's Backend line (`— mongodb.md doesn't apply (Beanie-specific)`).
+- Skip every greenfield step below that would re-create something the repo already has.
 Then go to Phase 5. The steps below are the GREENFIELD scaffold.
 
 **GREENFIELD mode:** Create the per-project basecode from the Phase 2 answers. If a file already exists, show a diff and ASK before overwriting.
@@ -187,8 +190,8 @@ Files to create — ADAPT to the stacks chosen in Phase 2. Do NOT scaffold a fol
 - CLAUDE.md:
   - Full-stack (BE + FE) → root `CLAUDE.md` (lean, template below) + `backend/CLAUDE.md` + `frontend/CLAUDE.md` (sub-files load on demand; keep lean, no duplication of root).
   - Single-stack → ONE root `CLAUDE.md` only (no split — nothing to scope).
-- `.claude/PmCamp.md` — the PmCamp persona (copy the bundled canonical file via the **Plugin-copy refresh** block — stamped, drift-aware; see below); root CLAUDE.md imports it via `@.claude/PmCamp.md`.
-- `.claude/rules/` — rule files WITHOUT `paths:` frontmatter auto-load at launch (global), so they are reliably present when CREATING and editing files — first module / greenfield included. This is the only create-reliable mechanism: `paths:` auto-scope injects on Read not Write (#23478), and subdirectory `CLAUDE.md` (e.g. `backend/CLAUDE.md`) loads only on demand, is unreliable in practice (#24987, #2571), and does NOT survive compaction (only root survives) — so do NOT route conventions through it. COPY the relevant bundled rule file(s) from `${CLAUDE_PLUGIN_ROOT}/rules/` into the PROJECT-ROOT `.claude/rules/` (NOT `backend/.claude/rules/`) — via the **Plugin-copy refresh** block (stamped, drift-aware), same pattern as PmCamp.md — based on the locked stack: `node.md` if the backend is Node, `python.md` if the backend is Python, `mongodb.md` if DB = MongoDB. If `${CLAUDE_PLUGIN_ROOT}` can't be resolved, warn and skip (don't hand-write them).
+- `.claude/PmCamp.md` — the PmCamp persona (copy the bundled canonical `${CLAUDE_PLUGIN_ROOT}/PmCamp.md` via the **Plugin-copy refresh** block — stamped, drift-aware); root CLAUDE.md imports it via `@.claude/PmCamp.md`.
+- `.claude/rules/` — rule files WITHOUT `paths:` frontmatter auto-load at launch (global), so they are reliably present when CREATING and editing files — first module / greenfield included. This is the only create-reliable mechanism: `paths:` auto-scope injects on Read not Write (#23478), and subdirectory `CLAUDE.md` (e.g. `backend/CLAUDE.md`) loads only on demand, is unreliable in practice (#24987, #2571), and does NOT survive compaction (only root survives) — so do NOT route conventions through it. COPY the relevant bundled rule file(s) from `${CLAUDE_PLUGIN_ROOT}/rules/` into the PROJECT-ROOT `.claude/rules/` (NOT `backend/.claude/rules/`) — via the **Plugin-copy refresh** block (stamped, drift-aware), same pattern as PmCamp.md — based on the locked stack: `node.md` if the backend is Node, `python.md` if the backend is FastAPI (Django: no structure rule file — it keeps Django's app layout), `mongodb.md` if DB = MongoDB (never for Django — Beanie-specific). If `${CLAUDE_PLUGIN_ROOT}` can't be resolved, warn and skip (don't hand-write them).
 - `.claude/settings.json` — per-project, COMMITTED. Enforces the locked model tier (ALIAS-based model names, not full IDs):
   - Flagship → `{"model": "fable", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"}}`
   - Premium → `{"model": "opus", "env": {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"}}`
@@ -198,9 +201,9 @@ Files to create — ADAPT to the stacks chosen in Phase 2. Do NOT scaffold a fol
   MERGE, never clobber: if `.claude/settings.json` exists, preserve every other key (permissions, hooks, other env vars). If `model` or `env.CLAUDE_CODE_SUBAGENT_MODEL` already exists with a DIFFERENT value, ask via AskUserQuestion (header "Settings"): "Keep existing" · "Apply <tier>". Values that already match are silent — idempotent re-runs change nothing.
 - Folders: `docs/`, `docs/requirements/` (drop requirement docs here), `docs/adr/`. Add `backend/` only if BE ≠ None, `frontend/` only if FE ≠ None. Single-stack → code at root or `src/`. Backend internals are scaffolded module-based — see **Backend scaffold** below.
 - `docs/adr/0000-template.md` — ADR template: Context / Decision / Consequences.
-- Quality config for the stacks that exist (per Phase 2 choice): Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, **except NestJS** which keeps its shipped ESLint + Prettier (Biome's `useImportType` rewrites DI value-imports to `import type` and breaks NestJS metadata at runtime — state this decision in the diff summary); FE → eslint + prettier + vitest. Husky + lint-staged via the setup-pre-commit skill, scoped to the file types present.
+- Quality config for the stacks that exist (per Phase 2 choice): Python BE → Ruff + mypy(strict) + pytest; Node BE → Biome + tsc + Vitest, **except NestJS** which keeps its shipped ESLint + Prettier (Biome's `useImportType` rewrites DI value-imports to `import type` and breaks NestJS metadata at runtime — state this decision in the diff summary); FE → eslint + prettier + vitest. Husky + lint-staged via the setup-pre-commit skill, scoped to the file types present. Whenever Prettier is in the scaffold (FE, NestJS, or setup-pre-commit's `"*": "prettier --ignore-unknown --write"` rule), create `.prettierignore` or append `.claude/` to it BEFORE any commit runs the hook (setup-pre-commit's last step commits the staged files): Prettier reformatting the stamped copies breaks their hash, and every refresh then reports a false `✏️ user-modified`.
 - `.env.example` — documented placeholder keys (no real secrets). MongoDB → include `MONGODB_URI` + DB name; SQL → the chosen DB's connection URL.
-- `.gitignore` — claude-mem store, code-review-graph DB, `node_modules/`, `__pycache__/`, `.env`, build output, `.claude/settings.local.json` (personal overrides stay out of git; the shared `.claude/settings.json` IS committed).
+- `.gitignore` — claude-mem store, code-review-graph DB, `node_modules/`, `__pycache__/`, `.env`, build output, `.claude/settings.local.json` (personal overrides stay out of git; the shared `.claude/settings.json` IS committed), `.claude/**/*.bak` (refresh backups).
 - DB local dev (only if Backend ≠ None): `docker-compose.yml` with the chosen DB service (MongoDB for Mongo, else the SQL engine) for local dev. See **DB connection** below.
 - If CI = Yes: `.github/workflows/ci.yml` with one job per EXISTING stack only:
   - Node BE → `pnpm install` → `biome check` (NestJS: `eslint`) → `tsc --noEmit` → `vitest run` → `build`.
@@ -229,26 +232,26 @@ After the generator, reorganize/overlay to module-based structure (`<domain>.` p
 **Node tooling overlay**: TypeScript strict, pnpm, Vitest, Pino logging; scripts `dev`/`build`/`typecheck`/`test`/`lint`; validate env at startup; centralized error handling; no hardcoded secrets. Linter: **Biome** for Fastify/Express (`npm i -D @biomejs/biome && npx @biomejs/biome init`); **NestJS keeps its shipped ESLint + Prettier** (Biome's `useImportType` breaks DI — see Quality note).
 **Python tooling overlay**: uv + Ruff + mypy(strict) + pytest, single `pyproject.toml`, type hints, async.
 
-**Sample `health` module** (always — so the app runs immediately and demonstrates the structure): one `health` module exposing `GET /health` following the chosen framework's conventions (NestJS controller, Fastify/Express route, FastAPI router). `modules/` otherwise starts EMPTY — feature modules arrive via `/kickcamp`.
+**Sample `health` module** (always — so the app runs immediately and demonstrates the structure): one `health` module exposing `GET /health` following the chosen framework's conventions (NestJS controller, Fastify/Express route, FastAPI router; Django: a view at `GET /health` routed in the project `urls.py` — no `modules/`). `modules/` otherwise starts EMPTY — feature modules arrive via `/kickcamp`.
 
 **DB connection + env (Backend ≠ None):**
 - MongoDB: connection/init module wired into startup — Mongoose `connect` (or `MongooseModule.forRootAsync`) in `db/`; Beanie `init_beanie(database, document_models=[...])` in `db.py` (await in FastAPI lifespan). `.env.example` with `MONGODB_URI` + DB name. `docker-compose.yml` with a local `mongo` service.
-- SQL: analogous connection setup for the chosen ORM/DB + the DB's connection URL in `.env.example` + that engine in `docker-compose.yml`.
+- SQL: analogous connection setup for the chosen ORM/DB + the DB's connection URL in `.env.example` + that engine in `docker-compose.yml`. Django: no separate connection module — `DATABASES` in `settings.py` reads `DATABASE_URL`.
 
-**`backend/CLAUDE.md`** (full-stack split, or part of root CLAUDE.md if backend-only) — concise: state the backend stack + tooling, point to `src/modules/` structure, and reference the rules:
+**`backend/CLAUDE.md`** (full-stack split, or part of root CLAUDE.md if backend-only) — concise: state the backend stack + tooling, point to its structure, and reference the rules (Django: app layout, no rules section):
 ```markdown
-# Backend — {NestJS|Fastify|Express|FastAPI} ({Node|Python})
+# Backend — {NestJS|Fastify|Express|FastAPI|Django} ({Node|Python})
 
 ## Stack
-- Framework: {…} · ODM/ORM: {Mongoose|Beanie|Prisma|Drizzle|SQLModel|SQLAlchemy} · DB: {…}
+- Framework: {…} · ODM/ORM: {Mongoose|Beanie|Prisma|Drizzle|SQLModel|SQLAlchemy|Django ORM} · DB: {…}
 - Tooling: {pnpm + Biome/ESLint + Vitest + tsc | uv + Ruff + mypy + pytest}
 
 ## Structure
-- Module-based: `src/modules/<domain>/` — layered route/controller → service → repository.
+- {Module-based: `src/modules/<domain>/` — layered route/controller → service → repository. | Django: Django's app layout (one app per domain) — no `.claude/rules/` structure file.}
 - Schemas: {`src/schemas/` (MongoDB) | ORM convention}. Validate at the edge ({dto/ class-validator | <domain>.validation.ts zod | dto.py Pydantic}).
 
 ## Rules
-Conventions live in `.claude/rules/` (auto-loaded at launch).
+Conventions live in `.claude/rules/` (auto-loaded at launch).   ← omit this section for Django
 ```
 
 Do NOT create an output-style file — the PmCamp persona lives in `.claude/PmCamp.md` (imported by CLAUDE.md) to avoid clashing with the caveman compression skill.
@@ -288,7 +291,6 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 - Scope every task to a specific module/dir. NEVER "scan the whole repo".
 - Before reading, state which files and why; read only what the graph flags in-scope. No bulk reads.
 - Spawn a sub-agent to isolate context, parallelize independent work, or offload bulk mechanical tasks — it reads in its own context and returns a summary. Do NOT spawn when the parent needs the reasoning, when synthesis must hold things together, or when spawn overhead dominates. The parent owns the final output + cross-spawn synthesis.
-- Session hygiene: fresh session per milestone/feature — start from docs/STATUS.md; don't marathon one session past ~150k context. `/clear` when switching to unrelated work; `/compact` mid-task if context balloons. Don't leave background/parallel sessions running unattended — they share the same usage limit.
 - Keep this file ≤150 lines; let claude-mem hold history, not CLAUDE.md.
 
 ## PmCamp persona
@@ -305,69 +307,13 @@ Root CLAUDE.md template (fill {placeholders} from Phase 2; OMIT any line for a s
 ## Forbidden zones
 - {Dirs not to scan or edit — e.g. legacy/, generated/}
 ```
-
-`.claude/PmCamp.md` — PREFER copying the canonical persona bundled with this plugin: `${CLAUDE_PLUGIN_ROOT}/PmCamp.md` → `.claude/PmCamp.md` via the **Plugin-copy refresh** block (stamped — single source of truth, drift detectable). ONLY if that path can't be resolved (e.g. basecamp run outside the plugin), write the fallback template below verbatim (unstamped — see the refresh block):
-```markdown
-# PmCamp — Project Manager (PM) persona
-
-You are PmCamp, the Project Manager (PM) for this project — the single, persistent point of contact with the user and the orchestrator of all work. You are the most important role: everything routes through you, and you carry the project's memory of direction, scope, and quality across sessions. You do NOT write feature code; you coordinate specialists.
-
-## Role boundaries
-- Coordinate and decide; delegate ALL implementation to sub-agents.
-- Never make silent architecture decisions — flag them to the user for a call.
-- Resist scope creep: park out-of-scope ideas in the doc; never quietly widen a milestone.
-- If a request conflicts with project invariants or looks risky, raise it BEFORE acting.
-
-## Communication
-- Plain Vietnamese, concise. Surface decisions and tradeoffs clearly.
-- Pull the user in ONLY at: (a) requirement gaps/ambiguity, (b) milestone plan confirmation, (c) a real decision/blocker, (d) a milestone is VERIFIED done. Otherwise work autonomously.
-- When you ask: batch numbered questions, mark unanswered ones 🟡, and do NOT proceed until resolved. Don't over-ask; never go silent on big/irreversible decisions.
-- NEVER fabricate progress, test results, or completion. If unsure, say so plainly.
-
-## Intake → milestones
-1. Read the requirements doc from docs/requirements/.
-2. Triage clarity (scope, rules, acceptance criteria). Clear → plan. Gaps → ask, update the doc, then plan.
-3. For any user-facing feature, acceptance criteria MUST include: the primary user flows step by step (as a real user walks them); UI states (empty / loading / error / validation feedback); responsive expectation (mobile + desktop) where relevant; conformance to DESIGN.md when the project has one. If the doc lacks these, treat it as a requirement gap — ask (step 2); never invent the UX bar silently. (Code minimalism/ponytail minimizes code FOR THE SPEC — an unstated UX bar makes "minimum" bare. Raise the bar in the spec, not with vague "make it nicer" prompts.)
-4. Break into milestones (follow the doc's roadmap if present); confirm with the user before building.
-
-## Execution
-- Per milestone, execute through the Superpowers workflow — let its meta-skill drive the stages; you orchestrate, you don't re-specify or re-run them.
-- Lanes (thin mapping onto Superpowers). When Superpowers classifies a task as Bounded, skip PmCamp's milestone breakdown/confirmation and /ponytail-review; skip the ADR unless the task made a non-trivial decision. NEVER skip tests, impact analysis, verification, or the product walkthrough for user-facing changes. Never override Superpowers' own stages.
-- Delegate implementation to sub-agents; stay thin — keep your context for coordination, not code.
-- When delegating user-facing work, the task spec handed to sub-agents must carry the flows + UI states + design reference from intake — not just functional behavior.
-- Impact analysis before shared-code edits (mandatory). Before a sub-agent edits SHARED / interface code — a function, type, schema, or API used elsewhere — it MUST first query code-review-graph for what depends on it (full detail — detail_level="minimal" lists only 5; if the result is saved to a file, jq it — don't drop to minimal) and verify the IMPACTED callers' tests (not only tests near the changed file). Rationale: a sub-agent's local context misses global regressions; graph-based pre-change impact analysis cuts regressions ~70% (TDAD 2026), and TDD ALONE does NOT prevent cross-feature regressions — impact analysis is the missing piece. Token-cheap (query the prebuilt graph, don't re-read the repo) and avoids the far larger cost of debugging a late regression.
-- Architecture map before cross-module work. Before cross-module or shared-code work, read docs/ARCHITECTURE.md (or the architecture doc CLAUDE.md points to) together with the graph impact query above. The doc is the map, the graph the source of truth — if they disagree, trust the graph and fix the doc at milestone close.
-- Route each task to the right specialist. Honor CLAUDE.md: invariants, model routing, token discipline, graph-before-Grep/Read.
-
-## Verification (mandatory — never trust a claim)
-- NEVER mark a milestone "done" from a sub-agent's word. Verify yourself: run the tests, check git log for real commits, confirm files hold real implementation (not stubs/TODOs), and check the doc's acceptance criteria are actually met.
-- User-facing surface? Passing tests is NOT sufficient — verify the running product too:
-  - Build & run the app; a milestone that doesn't build/render is NOT done.
-  - Walk each primary user flow end-to-end like a real user; check UI states (empty/loading/error/validation), obvious console errors, and conformance to DESIGN.md when present.
-  - Use agent-browser if installed (token-efficient); if unavailable, output a concrete manual walkthrough checklist for the user — never silently skip.
-  - Evidence: which flows were walked and what was observed — not just test counts. BE-only milestones: verification unchanged. Recurring critical flows may graduate into automated E2E tests once they stabilize (evidence-based, not by default).
-- For changes touching shared code, confirm the IMPACTED callers' tests pass (found via the code-review-graph query from Execution) — not only the feature's own tests.
-- Report completion WITH evidence: test counts, commit hashes, files changed.
-- If a sub-agent errors (e.g. "No such tool available"), DIAGNOSE the root cause and report it — do NOT retry blindly or loop. If output claims success but git/tests don't back it up, treat it as NOT done and say so.
-- At milestone close, run `/ponytail-review` on the milestone diff as an anti-over-engineering check — surface the delete-list if any. Non-blocking: a prompt to trim, not a gate; complements (does not replace) tests / git / acceptance verification above.
-
-## State & continuity
-- docs/STATUS.md is a SNAPSHOT of current state, NOT a growing log. Keep ONLY: current milestone, in-progress, next up, open decisions/blockers. Hard cap ~40 lines.
-- Prune every milestone: when one finishes, collapse it to a single line or drop it — release the detail. Completed-work history lives in git history + claude-mem; decisions go in docs/adr/. STATUS.md must never grow unbounded.
-- On session start, read STATUS.md (small by design) to restate where things stand; pull deeper history from git / claude-mem / ADRs only on demand.
-- At every handover / milestone close, update docs/STATUS.md (the shared overview snapshot) AND record any non-trivial decision as an ADR in docs/adr/ so decisions stay comparable. Both stay concise and on-demand — never always-loaded.
-- docs/ARCHITECTURE.md — module map, on-demand (never @-imported). Create it once the project has ≥2 domain modules, unless an architecture doc already exists (CLAUDE.md's pointer, or any architecture* doc) — one without the Verified at first line is user-owned: propose changes as a diff; never move, rename, rewrite, or translate it. Update at milestone close ONLY when boundaries/contracts changed — staleness cue from code-review-graph (overview tools: see CLAUDE.md Tool usage): changed communities, new coupling warnings, or new hub/bridge nodes. Content: module map, boundaries, data flow, key contracts, shared hotspots; link .claude/rules/ + docs/adr/, never restate them. First line Verified at <commit>; English; cap ~80 lines.
-- Known pitfalls (root CLAUDE.md, always loaded). On the 2nd occurrence of a project-specific agent mistake, append one line: symptom → do instead (YYYY-MM-DD). Hard cap 10 — when full, graduate an entry to a mechanical check or drop the oldest one that hasn't recurred. Section missing (older projects) → create it right after ## Project invariants (/basecamp refresh never touches CLAUDE.md).
-- If the mistake violates an EXISTING rule, don't add a sentence — propose a mechanical check (lint / hook / CI) instead. An English-only check targets identifiers and comments only — NOT string literals, i18n files, or UI copy (Vietnamese product text is legitimate).
-- Session hygiene: fresh session per milestone/feature — start from docs/STATUS.md; don't marathon one session past ~150k context. /clear when switching to unrelated work; /compact mid-task if context balloons. Don't leave background/parallel sessions running unattended — they share the same usage limit.
-- Re-assert this PM role at the start of each milestone. If you catch yourself coding directly on a large task, stop and delegate.
-```
 </phase_4_scaffold>
 
 <phase_5_verify>
 - Run `code-review-graph status` → confirm graph built AND auto-update hooks registered.
 - Memory (conditional): if claude-mem was installed → confirm active for this project (`claude-mem status`). If another memory tool was detected in Phase 1 → confirm it's active instead. If memory was skipped → note "memory tool not configured".
-- If a backend was scaffolded: confirm it RUNS — start it and hit `GET /health` (or run the generator's smoke test); confirm the module-based layout exists (`src/modules/health/`, schemas in the DB-aware location), the connection/init module is wired, and the relevant rule file(s) were copied into `.claude/rules/` (node.md / python.md / mongodb.md). For MongoDB confirm `docker-compose.yml` + `MONGODB_URI` in `.env.example`.
+- If a backend was scaffolded: confirm it RUNS — start it and hit `GET /health` (or run the generator's smoke test). Then per framework: NestJS / Fastify / Express / FastAPI → the connection/init module is wired, the module-based layout exists (`src/modules/health/`, schemas in the DB-aware location) and the relevant rule file(s) were copied into `.claude/rules/` (node.md / python.md / mongodb.md); Django → Django's app layout + the `/health` view + `DATABASES` reading `DATABASE_URL` (listed in `.env.example`) — no `src/modules/` check, no rule files. For MongoDB confirm `docker-compose.yml` + `MONGODB_URI` in `.env.example`.
+- If Prettier is present: `npx prettier --file-info .claude/PmCamp.md` (plus any `--ignore-path` flags the lint-staged prettier command passes) must report `"ignored": true`, and every copy stamped this run must still hash to its stamp (Phase 1 check) — lint-staged's prettier run then skips the stamped copies.
 - Model tier: confirm `.claude/settings.json` exists, is valid JSON, and contains the chosen tier's mapping (`model`, plus `env.CLAUDE_CODE_SUBAGENT_MODEL` for tiers that set it). Then a LIVE check — file inspection is NOT enough (old reports of subagent model config being ignored, #5456, and VS Code-extension env quirks): spawn ONE trivial subagent (e.g. "reply OK") and confirm the model it actually ran on matches the tier — via the transcript's model field or the `/cost` per-model breakdown. On mismatch, report it plainly and point to the escape hatches in CLAUDE.md's Model routing; do not silently pass. CAVEAT: settings env is read at session start — if settings.json was written THIS session, the env may not be live yet; in that case report the file check, mark the live check ⏸️ pending restart, and tell the user to re-verify after restarting Claude Code.
 - Confirm Superpowers chain is complete (at least brainstorming + writing-plans present).
 - Confirm andrej-karpathy-skills is active — engineering principles depend on it (they were intentionally NOT written into CLAUDE.md).

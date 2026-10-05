@@ -2,23 +2,14 @@
 
 > Hoãn lại để test bộ hiện tại (basecamp + kickcamp) trước.
 
-## 1. Thông báo Telegram cho PM ⭐ (ưu tiên)
+## 1. PM notifications + remote control ⭐ (priority)
 
-**Vấn đề:** VS Code terminal không tự convert OSC → OS notification, nên không nhận được khi PM cần hỏi / xong task.
+**Problem:** the VS Code terminal doesn't turn OSC sequences into OS notifications, so you miss it when the PM is waiting for input or has finished.
 
-**Giải pháp — 2 mức:**
-
-- **Mức 1 — one-way (nhận thông báo), ~3 phút.** Hook trong `~/.claude/settings.json`:
-  - `Notification` hook (fire khi PM chờ input) + `Stop` hook (fire khi xong lượt) → curl Telegram Bot API.
-  - Setup: @BotFather `/newbot` → `BOT_TOKEN`; nhắn bot rồi `getUpdates` → `chat.id`.
-  - Token để trong shell profile, **KHÔNG commit**.
-- **Mức 2 — two-way (trả lời từ điện thoại).** Đúng giấc mơ "PM ping → tap trả lời trên phone":
-  - Plugin Telegram **chính thức của Anthropic** (khuyến nghị), hoặc
-  - **CCGram** (bên thứ ba) — nút inline approve/deny + trả lời AskUserQuestion từ phone, chạy mọi terminal.
-
-**Lộ trình:** Mức 1 xác nhận chạy → lên Mức 2.
-**Lưu ý:** Stop hook fire mỗi lần dừng (không chỉ khi xong hẳn) → có thể dư ping; nếu phiền chỉ dùng Notification.
-**Phạm vi:** global một lần, KHÔNG nhét vào `/basecamp` (chứa secret).
+- **Recommended path — Anthropic Remote Control:** first-party push notifications, reply/approve from the Claude app, server mode with worktrees.
+- **Telegram only if a Telegram group is a hard requirement:** evaluate Anthropic Channels first; Untether / CCGram only after that.
+- **Phone vs desk:** phone = monitor / answer / approve direction; desk = verify, close milestones, risky approvals. Never yolo.
+- **Superseded:** the earlier plan (`Notification` / `Stop` hooks → Telegram Bot API) — keep only as a no-app fallback: global, token in the shell profile, never committed, never inside `/basecamp`.
 
 ## 2. Template repo (chỉ khi cần)
 
@@ -178,3 +169,47 @@ Added [ponytail](https://github.com/DietrichGebert/ponytail) to the curated glob
 - **Audit hardening:** the plugin-copy audit/refresh covers only `.claude/rules/` files whose names exist in the plugin's `rules/` — user-added rule files are never flagged.
 - **Canonical + fallback in sync:** `PmCamp.md` and the fallback PmCamp template in `skills/basecamp/SKILL.md` updated together (differ only in bold + inline backticks per existing convention).
 - **Constraints held:** no verification weakened; idempotent; graceful-degrade (graph MCP not live → ORIENT maps from entry points; Superpowers version unreadable → `❔ unknown`); other phases untouched.
+
+## 16. Full-repo review fixes ✅ v1.2.6
+
+**Problem:** a full-repo review found fixes, no new features: Prettier silently broke refresh stamps; FastAPI conventions (`python.md`, SQLModel, Beanie-specific `mongodb.md`) were applied to Django, and our module structure to adopted codebases with their own layout; the graph-guide note invited older projects to lose their tool names; `/kickcamp` restated a partial verification list; and the embedded fallback PmCamp doubled every persona edit.
+
+- **Probe (drives v1.2.7, nothing changed yet):** general-purpose subagents receive PmCamp through CLAUDE.md's `@.claude/PmCamp.md` import — a project-only line quoted verbatim in 2/2 projects with zero tool calls; an Explore control answered NOT IN CONTEXT. One subagent concluded it *was* PmCamp and must not write feature code. On those (older-PmCamp) projects a subagent starts with ~12k chars of project memory (CLAUDE.md + PmCamp + rules).
+- **Prettier vs refresh stamps:** whenever Prettier is in the scaffold (FE, NestJS, or setup-pre-commit's `"*": "prettier --ignore-unknown --write"` lint-staged rule) — or detected in ADOPT — `.claude/` goes into `.prettierignore` before any commit runs the hook, and Phase 5 checks `npx prettier --file-info .claude/PmCamp.md` (with the lint-staged command's `--ignore-path` flags, if any) → `"ignored": true`, plus that copies stamped this run still hash to their stamp. Verified: without it Prettier rewrites a stamped copy (false `✏️ user-modified` on every refresh); with it a real lint-staged 15 run skips `.claude/` while still formatting other files. Existing projects: `/basecamp refresh` doesn't touch `.prettierignore` / `.gitignore` — re-run `/basecamp` (ADOPT appends both) or add `.claude/` and `.claude/**/*.bak` by hand.
+- **Django:** `python.md` is FastAPI-only (description + heading say so) and is copied only for FastAPI. Django keeps its app layout with no structure rule file, gets a `GET /health` view routed in `urls.py`, and Phase 5 checks it per framework. ADOPT detects Django (`manage.py` / `django` dependency) and the argument bypass (`django`, `2B`) lands on the same handling. Django + SQL resolves to the Django ORM (never SQLModel/SQLAlchemy): `DATABASES` reads `DATABASE_URL` (in `.env.example`), no separate connection module. Django + MongoDB is never picked — the Database step drops MongoDB for Django (PostgreSQL ★ · SQLite · Other), and a guard re-asks if arguments, a description, or a typed answer produce the pair; ADOPT keeps a detected pair but copies no `mongodb.md` (Beanie-specific) and notes that on CLAUDE.md's Backend line. With no stack rule files, Django skips ADOPT's Conventions question. Known gap: Django projects created earlier still refresh `python.md` (and `mongodb.md` if they used MongoDB) until removed by hand.
+- **ADOPT doesn't impose structure:** before copying node/python/mongodb rules, ADOPT compares the detected layout with ours; on a mismatch it asks once ("Conventions": Follow existing ★ · Adopt claude-camp structure). Follow existing → no stack rule files plus a one-line `Conventions:` record in CLAUDE.md; refresh never reports declined rules as missing and never copies stack rules ahead of the question. A made choice is never re-asked (`Conventions:` line = Follow existing; rule copies already present = Adopt). Existing code is never restructured.
+- **Graph-guide note:** delete code-review-graph's appended CLAUDE.md section only after copying the template's "Key graph tools" line in — PmCamp points to CLAUDE.md for the tool names.
+- **/kickcamp:** verification defers to PmCamp's Verification section in full (impacted-caller tests, product walkthrough); the no-persona fallback adds a product walkthrough for UI work and treats claude-mem as optional.
+- **Wording:** PmCamp says "shared state snapshot" and "claude-mem (if installed)"; the template's Token discipline drops the Session-hygiene bullet PmCamp already carries verbatim.
+- **.gitignore:** `.claude/**/*.bak` (refresh backups) in the template and ADOPT's append list.
+- **README:** claude-mem marked opt-in, `git-guardrails-claude-code`, License link → `./LICENSE`.
+- **Embedded fallback PmCamp removed:** the plugin is the only distribution channel; an unresolvable `${CLAUDE_PLUGIN_ROOT}` now means warn, skip, and print the stamped copy command — PmCamp and rule files alike, only for missing/outdated copies (never over a user-modified one), with source file + version from the `camp@…` entry of `claude plugin list --json`. SKILL.md: 378 → 324 lines.
+- **Constraints held:** no behaviour change beyond these items; idempotent (declined rules stay declined; `.prettierignore` / `.gitignore` are appended, never rewritten); graceful-degrade.
+
+## 17. Remote-mode PmCamp + tiered permission allowlist (backlog)
+
+When the user works from the phone (see #1): PmCamp asks text questions only and never closes a user-facing milestone remotely. Pair it with a tiered permission allowlist.
+
+## 18. Harness hardening (backlog)
+
+Permission deny/ask rules plus PostToolUse lint hooks.
+
+## 19. Release versioning — v1.3.0 (recon pending)
+
+Conventional Commits + release-please, one product version. Open question: GitLab-hosted projects.
+
+## 20. taste-skill + frontend.md conventions (when FE work starts)
+
+taste-skill as a design-system option, and a `frontend.md` conventions file — both only once real FE work starts.
+
+## 21. sober analyzer + Strix (optional)
+
+sober as an optional CI gate; Strix as an optional pre-launch pentest.
+
+## 22. Session-zombie check (backlog)
+
+Add to session hygiene: check for leftover sessions (`ps`) and reload VS Code.
+
+## 23. PmCamp token diet (backlog)
+
+Always-loaded context is ≈5k tokens on Node+Mongo, and impact analysis is described in 4 files. Trim to one owner per rule; the v1.2.6 probe (subagents load PmCamp and can take on the PM role) feeds this.

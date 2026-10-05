@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.5-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.2.6-3fb950.svg)](#)
 
 > **v1.2.5** — An on-demand `docs/ARCHITECTURE.md` module map (read before cross-module work) + an always-loaded **Known pitfalls** list (two-strikes, capped at 10) against "fix A, break B"; PmCamp's own ceremony scales with Superpowers' Bounded classification — tests, impact analysis, and verification are never skipped.
 
@@ -44,7 +44,7 @@ Two commands run the whole loop:
 - 🧭 **One point of contact.** You talk to PmCamp; it orchestrates everything and pulls you in only for gaps, plan sign-off, real decisions, and verified completion.
 - 🔍 **Verification-first.** No milestone is "done" on a sub-agent's word — PmCamp checks tests, real commits, and acceptance criteria, and reports with evidence. For user-facing milestones it also **runs the product** and walks the primary user flows — passing tests alone doesn't close a milestone.
 - 🌱 **Greenfield *or* brownfield.** `/basecamp` scaffolds new projects and safely **adopts** existing ones (detect stack, map the code, never overwrite).
-- 🧱 **Python *and* Node backends.** FastAPI/Django (Python) or NestJS ★/Fastify/Express (Node), with PostgreSQL/MySQL/SQLite **or MongoDB**. Scaffolds run the official generator, then overlay a module-based structure shipped as bundled rules.
+- 🧱 **Python *and* Node backends.** FastAPI/Django (Python) or NestJS ★/Fastify/Express (Node), with PostgreSQL/MySQL/SQLite **or MongoDB** (Django: SQL via its own ORM). Scaffolds run the official generator, then overlay a module-based structure shipped as bundled rules (Django keeps its own app layout).
 - 🎚️ **Model-tier enforcement.** Pick a tier once (Flagship / Premium ★ / Balanced / Economy) — `/basecamp` writes it to `.claude/settings.json`, setting the PM model and *forcing* every subagent's model via `CLAUDE_CODE_SUBAGENT_MODEL` (the only layer that catches them all). Escape hatches documented in `CLAUDE.md`.
 - 🪙 **Token-efficient by design.** Graph-before-grep, scoped reads, sub-agent isolation, session hygiene rules, a snapshot `STATUS.md`, and optional command/output compression.
 - 🧩 **Composes, doesn't compete.** Builds on Superpowers (workflow), Karpathy's principles, claude-mem, and code-review-graph instead of re-implementing them.
@@ -110,17 +110,17 @@ On first run, `/basecamp` audits and installs (only what's missing) a curated gl
 - **[Superpowers](https://github.com/obra/superpowers-marketplace)** — the brainstorm → plan → TDD → review workflow
 - **[andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills)** — engineering principles (Simplicity First, Surgical Changes, …)
 - **[ponytail](https://github.com/DietrichGebert/ponytail)** — writes the minimum code that works (YAGNI ladder: reuse > stdlib > native > dep > one line > minimum), safety-preserving (never trims validation/security/accessibility) — trims LOC, tokens, and cost
-- **[claude-mem](https://github.com/thedotmack/claude-mem)** — cross-session memory
+- **[claude-mem](https://github.com/thedotmack/claude-mem)** — cross-session memory (opt-in: `/basecamp` asks first, and skips it if you already use another memory tool)
 - **[code-review-graph](https://github.com/tirth8205/code-review-graph)** — an AST map of your code (query it instead of reading the whole repo)
 - **[caveman](https://github.com/JuliusBrussee/caveman)** — compresses Claude's own output (installed **on-demand only** via `/caveman` — never the always-on hook, so it won't garble the PM's messages)
-- **[Matt Pocock skills](https://github.com/mattpocock/skills)** — `improve-codebase-architecture`, `git-guardrails`, `setup-pre-commit`
+- **[Matt Pocock skills](https://github.com/mattpocock/skills)** — `improve-codebase-architecture`, `git-guardrails-claude-code`, `setup-pre-commit`
 - **Optional, token-saving:** [`rtk`](https://github.com/rtk-ai/rtk) (compresses command output) and [`agent-browser`](https://github.com/vercel-labs/agent-browser) (cheap browser for dynamic/auth pages)
 
 If an install is blocked by a permission or classifier prompt, `/basecamp` prints the manual command and continues instead of stalling. Re-runs are idempotent — anything already present is skipped.
 
 ## The PmCamp persona
 
-`PmCamp.md` in this repository is the **single source of truth** for the PM's behaviour. During scaffolding, `/basecamp` copies it from the plugin directory (`${CLAUDE_PLUGIN_ROOT}/PmCamp.md`) into the project's `.claude/PmCamp.md`, version-stamped so drift is detectable. (A fallback template is retained for runs outside the plugin.)
+`PmCamp.md` in this repository is the **single source of truth** for the PM's behaviour. During scaffolding, `/basecamp` copies it from the plugin directory (`${CLAUDE_PLUGIN_ROOT}/PmCamp.md`) into the project's `.claude/PmCamp.md`, version-stamped so drift is detectable. (If the plugin directory can't be resolved, `/basecamp` warns and prints the manual copy command instead of writing a substitute.)
 
 To change how the PM behaves — verification, communication style, state handling — edit `PmCamp.md` here, commit, and push. Every later `/basecamp` picks up the new version; existing projects sync their copies with `/basecamp refresh` (untouched copies update automatically, user-edited ones only with confirmation).
 
@@ -135,7 +135,7 @@ Personal usage/cost observability (not part of this plugin):
 
 ## Roadmap
 
-Tracked upgrades (Telegram notifications, an alternative memory backend, Agent Teams, …) live in [`UPGRADES.md`](./UPGRADES.md).
+Tracked upgrades (PM notifications + remote control, an alternative memory backend, Agent Teams, …) live in [`UPGRADES.md`](./UPGRADES.md).
 
 ## Repository structure
 
@@ -161,4 +161,4 @@ claude-camp/
 
 ## License
 
-[MIT](#license) © thaiha
+[MIT](./LICENSE) © thaiha
