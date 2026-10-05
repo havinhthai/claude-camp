@@ -316,7 +316,7 @@ On socialcamp, refresh's agent called the plugin `python.md` "written for MongoD
   - ADR / `ARCHITECTURE.md` conflicts.
 
   The verdict is `READY` or `GAPS: n` plus 🟡 questions, delivered in chat. It asks only questions that change milestone boundaries or feasibility; per-feature questions stay with brainstorming.
-- **Milestone close** (`workflows/milestone-close.md`, 4.1k chars). Runs before declaring a milestone done, and before Superpowers' merge menu so the user gets one turn for both:
+- **Milestone close** (`workflows/milestone-close.md`, 4.1k chars; 4.5k with the v1.3.1 loopback hint). Runs before declaring a milestone done, and before Superpowers' merge menu so the user gets one turn for both:
   - verify;
   - walk the product (the browser how-to moved out of the persona);
   - trace, `| Criterion | Evidence | Status |`:
@@ -373,7 +373,12 @@ The persona went 8,479 → 7,533 chars (UTF-16, as the hook counts) — 948 fewe
 
 **Known gaps:**
 - The merge-menu probe on a clean branch (no bug) was cut off by a session restart and not re-run; the buggy-branch probe covered the order: gate → fix → commit → verdict + menu.
-- agent-browser failed to open localhost (`ERR_ADDRESS_INVALID`) in two runs on this machine; the PM fell back to Playwright or to ⏳ + a manual checklist as designed.
+- agent-browser failed to open localhost (`ERR_ADDRESS_INVALID`) in several runs on this machine; the PM fell back to Playwright or to ⏳ + a manual checklist as designed, but spent 5–10 tool calls diagnosing it each time. Cause, diagnosed after release:
+  - ✅ A Chrome net log shows `connect()` to 127.0.0.1 failing with errno 49 (EADDRNOTAVAIL).
+  - ✅ It hits only agent-browser's Chrome for Testing 153. At the same time, curl, Python and Chrome for Testing 149 reached 127.0.0.1, and `[::1]` worked even in 153 — one probe walked the whole page that way.
+  - 🔎 The trigger is NordVPN's NordLynx full tunnel (utun4, 10.5.0.2, holding the default route). This rests on timing: it was connected while 153 failed, and 153 worked on `127.0.0.1`, `localhost` and `[::1]` once it was disconnected. Not yet confirmed by an on/off test.
+  - ❓ Why 153 behaves differently from 149 is unknown. Turning off its sandbox, Happy Eyeballs v3 or the local-network-access checks didn't change it.
+  - **Fixed in v1.3.1:** a one-sentence hint in `milestone-close.md` step 2 — serve on `::1` for that run only (a CLI flag or env var, never committed config, loopback only — never `::` or `0.0.0.0`), then Playwright, then the manual checklist; one retry, no deeper diagnosis.
 - The probes ran in parallel and the PMs picked the same port (8799) despite `PORT`. Two runs hit each other's server; both noticed and re-ran on a free port. This is a harness artifact, not a camp issue.
 - Bounded closes still list a few evidence bullets rather than one line.
 - On-demand files rely on the PM following the trigger — 6/6 here, but only one model and one fixture.

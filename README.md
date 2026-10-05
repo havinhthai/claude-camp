@@ -9,7 +9,7 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.3.0-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.3.1-3fb950.svg)](#)
 
 > **v1.3.0** — Two gates for PmCamp, borrowed as ideas from the BMAD method. A **readiness check** before you confirm milestones: every requirement mapped, acceptance criteria present, unknowns spiked, no conflict with ADRs → `READY` or `GAPS`. A **milestone close** that traces each acceptance criterion to evidence and ends in `PASS` / `CONCERNS` / `FAIL` / `WAIVED` — a waiver only in your own words, and a criterion PmCamp couldn't observe stays `CONCERNS` until you check it. Both are files in `.claude/camp/workflows/` that PmCamp reads when they apply: nothing loads them otherwise. PmCamp also labels its claims ✅ confirmed / 🔎 deduced / ❓ hypothesis and answers a mid-milestone requirement change with impact + options. The persona shrinks 8,479 → 7,533 chars (−288 tokens per main-session request); sub-agents are unchanged.
 
