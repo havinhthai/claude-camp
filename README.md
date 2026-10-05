@@ -9,7 +9,9 @@ Brief one project manager — it plans, delegates to sub-agents, verifies, and s
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-d97757.svg)](https://code.claude.com)
-[![Version](https://img.shields.io/badge/version-1.2.8-3fb950.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.3.0-3fb950.svg)](#)
+
+> **v1.3.0** — Two gates for PmCamp, borrowed as ideas from the BMAD method. A **readiness check** before you confirm milestones: every requirement mapped, acceptance criteria present, unknowns spiked, no conflict with ADRs → `READY` or `GAPS`. A **milestone close** that traces each acceptance criterion to evidence and ends in `PASS` / `CONCERNS` / `FAIL` / `WAIVED` — a waiver only in your own words, and a criterion PmCamp couldn't observe stays `CONCERNS` until you check it. Both are files in `.claude/camp/workflows/` that PmCamp reads when they apply: nothing loads them otherwise. PmCamp also labels its claims ✅ confirmed / 🔎 deduced / ❓ hypothesis and answers a mid-milestone requirement change with impact + options. The persona shrinks 8,479 → 7,533 chars (−288 tokens per main-session request); sub-agents are unchanged.
 
 > **v1.2.8** — Cuts what every spawn loads from outside camp's own files: the Artifact tool off, a `general-purpose` override without the Skill tool (no skill listing in sub-agents), one memory system instead of two, ponytail scoped to general-purpose sub-agents, and an opt-in cleanup of superseded camp lines in older `CLAUDE.md` files. Measured per first request: socialcamp sub-agent 50.3–54.2k → 14.2k tokens, main 62.3–65.0k → 31.9k; a fresh FastAPI project's sub-agent 43.3–44.6k → 12.2k.
 
@@ -46,7 +48,7 @@ Two commands run the whole loop:
 ## Highlights
 
 - 🧭 **One point of contact.** You talk to PmCamp; it orchestrates everything and pulls you in only for gaps, plan sign-off, real decisions, and verified completion.
-- 🔍 **Verification-first.** No milestone is "done" on a sub-agent's word — PmCamp checks tests, real commits, and acceptance criteria, and reports with evidence. For user-facing milestones it also **runs the product** and walks the primary user flows — passing tests alone doesn't close a milestone.
+- 🔍 **Verification-first.** No milestone is "done" on a sub-agent's word — PmCamp checks tests, real commits, and acceptance criteria, and closes each milestone with a criterion → evidence table and a verdict (`PASS` / `CONCERNS` / `FAIL` / `WAIVED`). For user-facing milestones it also **runs the product** and walks the primary user flows — passing tests alone doesn't close a milestone.
 - 🌱 **Greenfield *or* brownfield.** `/basecamp` scaffolds new projects and safely **adopts** existing ones (detect stack, map the code, never overwrite).
 - 🧱 **Python *and* Node backends.** FastAPI/Django (Python) or NestJS ★/Fastify/Express (Node), with PostgreSQL/MySQL/SQLite **or MongoDB** (Django: SQL via its own ORM). Scaffolds run the official generator, then overlay a module-based structure shipped as bundled rules (Django keeps its own app layout).
 - 🎚️ **Model tiers.** Pick a tier once (Flagship / Premium ★ / Balanced / Economy) — `/basecamp` writes it to `.claude/settings.json`: the PM model plus the default subagent model (`CLAUDE_CODE_SUBAGENT_MODEL`) for every spawn that names none. Measured on Claude Code 2.1.289, a dispatch's own `model` wins — Superpowers picks per role (Haiku mechanical, Sonnet build, Opus final review), which fits Premium and Flagship; on Balanced or Economy an Opus final review exceeds the tier. Built-in Explore and Plan inherit the PM's model unless the dispatch names one, so PmCamp passes one (Explore → Haiku, Plan → Sonnet). Want a hard ceiling instead? Add `"CLAUDE_CODE_SUBAGENT_MODEL_FORCE": "1"` to the settings `env` (opt-in).
@@ -76,8 +78,8 @@ Update later with:
 | --- | --- |
 | `/basecamp` | Bootstrap a project. Audits and installs the global toolkit, scaffolds to the chosen stack, and writes `CLAUDE.md` + the PmCamp persona. Runs in **greenfield** mode (new) or **adopt** mode (existing codebase). |
 | `/basecamp adopt` | Force adopt mode for an existing codebase — detect the stack, build the code graph, scaffold only what's missing, never overwrite. |
-| `/basecamp refresh` | Sync project-local copies (`PmCamp.md`, `PmCamp.persona.md`, `rules/`, the opt-in `agents/general-purpose.md`) with the installed plugin version, migrating pre-1.2.7 projects to the hook-injected persona; user-modified files are never overwritten without confirmation. Then three opt-in steps, each shown as a diff first: spawn-cost settings, memory consolidation, and a `CLAUDE.md` cleanup of superseded camp lines. |
-| `/kickcamp <doc>` | Hand a requirements doc to PmCamp: triage → milestones (you confirm) → build via sub-agents → **verify** (tests + git + acceptance, plus a product walkthrough for UI work) → report. |
+| `/basecamp refresh` | Sync project-local copies (`PmCamp.md`, `PmCamp.persona.md`, `rules/`, `camp/workflows/`, the opt-in `agents/general-purpose.md`) with the installed plugin version, migrating pre-1.2.7 projects to the hook-injected persona; user-modified files are never overwritten without confirmation. Then three opt-in steps, each shown as a diff first: spawn-cost settings, memory consolidation, and a `CLAUDE.md` cleanup of superseded camp lines. |
+| `/kickcamp <doc>` | Hand a requirements doc to PmCamp: triage → readiness check → milestones (you confirm) → build via sub-agents → **verify** (tests + git + acceptance, plus a product walkthrough for UI work) → milestone verdict → report. |
 
 ## How it works
 
@@ -92,6 +94,9 @@ you → /kickcamp doc
    PmCamp: triage ──(gaps?)──► ask you 🟡
         │
         ▼
+   readiness check: READY / GAPS 🟡
+        │
+        ▼
    milestones ──► you confirm
         │
         ▼
@@ -102,10 +107,14 @@ you → /kickcamp doc
                   (+ UI walkthrough if user-facing)
         │
         ▼
+   milestone close: criterion → evidence table
+                    PASS / CONCERNS / FAIL / WAIVED
+        │
+        ▼
    report with evidence ──► you approve ──► next milestone ↺
 ```
 
-You only step in at four moments: a requirement gap, milestone sign-off, a real decision or blocker, and a verified-done report.
+You only step in at four moments: a requirement gap, milestone sign-off, a real decision or blocker, and a verified-done report. The gates ride those moments — readiness questions come with the milestone plan, the verdict with the done report — so they add no extra round-trips. The gate procedures live in `.claude/camp/workflows/` (`readiness.md`, `milestone-close.md`): PmCamp reads one when its moment comes, so they cost nothing in any other session or sub-agent. Bounded tasks skip readiness and close with one evidence line instead of the table; verification and the walkthrough never skip.
 
 ## What `/basecamp` sets up
 
@@ -139,15 +148,17 @@ ponytail can be kept out of every sub-agent with a matcher that matches no agent
 
 ## The PmCamp persona
 
-`PmCamp.persona.md` in this repository is the **single source of truth** for the PM's behaviour. `/basecamp` copies it into the project's `.claude/PmCamp.persona.md`, version-stamped so drift is detectable, and the plugin's `SessionStart` hook injects it into the **main session only** — at startup, resume, `/clear` and after `/compact`, even when the session starts in a subdirectory. Sub-agents never receive it; they see `.claude/PmCamp.md`, a short stub that root `CLAUDE.md` imports. If hooks are off, the stub tells the main session to Read the persona itself. A persona over 9,500 characters isn't injected — past 10,000 Claude Code would hand the model only a 2k-character preview — so the PM is told to Read the file and to warn you instead.
+`PmCamp.persona.md` in this repository is the **single source of truth** for the PM's behaviour, together with its gate procedures in `workflows/`. `/basecamp` copies it into the project's `.claude/PmCamp.persona.md`, version-stamped so drift is detectable, and the plugin's `SessionStart` hook injects it into the **main session only** — at startup, resume, `/clear` and after `/compact`, even when the session starts in a subdirectory. Sub-agents never receive it; they see `.claude/PmCamp.md`, a short stub that root `CLAUDE.md` imports. If hooks are off, the stub tells the main session to Read the persona itself. A persona over 9,500 characters isn't injected — past 10,000 Claude Code would hand the model only a 2k-character preview — so the PM is told to Read the file and to warn you instead.
 
 If the plugin directory can't be resolved, `/basecamp` finds the camp install in `~/.claude/plugins/installed_plugins.json` and copies from there; it prints a manual copy command only when nothing resolves.
 
-To change how the PM behaves — verification, communication style, state handling — edit `PmCamp.persona.md` here, commit, and push. Every later `/basecamp` picks up the new version; existing projects sync their copies with `/basecamp refresh` (untouched copies update automatically, user-edited ones only with confirmation). On projects set up before v1.2.7, refresh moves the persona out of `.claude/PmCamp.md` into `PmCamp.persona.md` and writes the stub — if you had edited it, it asks first and keeps your edits byte for byte.
+To change how the PM behaves — verification, communication style, state handling — edit `PmCamp.persona.md` (or the gates in `workflows/`) here, commit, and push. Every later `/basecamp` picks up the new version; existing projects sync their copies with `/basecamp refresh` (untouched copies update automatically, user-edited ones only with confirmation). On projects set up before v1.2.7, refresh moves the persona out of `.claude/PmCamp.md` into `PmCamp.persona.md` and writes the stub — if you had edited it, it asks first and keeps your edits byte for byte.
 
 When you correct a standing preference — report format, workflow, a do or don't — PmCamp writes it to `## Working agreements` in the root `CLAUDE.md` the first time (capped at 10 lines) and tells you; agent mistakes go to `## Known pitfalls` instead, on the second occurrence.
 
-For user-facing milestones, verification goes beyond tests: PmCamp builds and runs the product, walks the primary user flows end-to-end, and checks UI states (empty/loading/error/validation) against `DESIGN.md` before calling anything done.
+For user-facing milestones, verification goes beyond tests: PmCamp builds and runs the product, walks the primary user flows end-to-end, and checks UI states (empty/loading/error/validation) against `DESIGN.md` before calling anything done. At close it lists every acceptance criterion with its evidence — a test that ran, a walkthrough step it observed, a commit — and gives one verdict: `PASS`, `CONCERNS` (nothing failed, but a risk remains — including a criterion it couldn't observe itself, which stays open until you confirm its manual checklist), `FAIL`, or `WAIVED` (a criterion left unmet because you said so; your words go into the requirements doc). `STATUS.md` collapses each closed milestone to one `M<n>: <verdict> (date)` line (pruned like the rest of the snapshot), and up to three retro lines go under `## Retro` in the requirements doc — a repeat feeds Known pitfalls.
+
+PmCamp labels claims about status, causes and outside systems: ✅ confirmed (with the evidence), 🔎 deduced, ❓ hypothesis — a guess is never presented as fact. If you change a requirement mid-milestone, it first lays out the impact on this and later milestones, ADRs, `ARCHITECTURE.md` and tests, with 2–3 options, and updates the doc and `STATUS.md` after you decide.
 
 ## Optional tools
 
@@ -180,6 +191,9 @@ claude-camp/
 │   ├── node.md              # Node backend (NestJS/Fastify/Express)
 │   ├── python.md            # Python backend (FastAPI)
 │   └── mongodb.md           # MongoDB data modeling (Mongoose/Beanie)
+├── workflows/               # PmCamp's gates, copied into .claude/camp/workflows/ (read on demand)
+│   ├── readiness.md         # before milestones are confirmed: READY / GAPS
+│   └── milestone-close.md   # before "done": criterion → evidence, PASS / CONCERNS / FAIL / WAIVED
 ├── project-agents/
 │   └── general-purpose.md   # opt-in override, copied into .claude/agents/ (not a plugin agent)
 ├── scripts/

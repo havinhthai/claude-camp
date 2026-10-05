@@ -194,7 +194,7 @@ When the user works from the phone (see #1): PmCamp asks text questions only and
 
 Permission deny/ask rules plus PostToolUse lint hooks.
 
-## 19. Release versioning — v1.3.0 (recon pending)
+## 19. Release versioning (backlog)
 
 Conventional Commits + release-please, one product version. Open question: GitLab-hosted projects.
 
@@ -283,3 +283,98 @@ Done in #24. The "≈5k tokens on Node+Mongo" estimate here was characters ÷ 4.
 ## 26. `python.md` reads as Beanie-first (backlog)
 
 On socialcamp, refresh's agent called the plugin `python.md` "written for MongoDB" (its tree shows `schemas/` + `db.py # Beanie/Motor init`) and recommended keeping the project's SQLModel copy. Split the tree's Mongo-only lines visually, or show the SQL layout first.
+
+## 27. PmCamp gates — readiness + milestone close ✅ v1.3.0
+
+**Problem:** borrow BMAD's gates as ideas (no install, no text) without adding ceremony or per-spawn tokens. Evidence from socialcamp, scrumcamp and hobyhunt (git, docs, 2 real PM transcripts):
+- 8 milestones reported done, then reopened. Example: socialcamp's wizard passed 1,048 tests while its fixtures matched the bug.
+- 5 gaps found only mid-build. scrumcamp M4.1 listed "verify by smoke" as a risk, never ran it, and lost ~3.5h.
+- 4 guesses stated as fact.
+- 3 mid-milestone requirement changes, all handled well without a gate.
+- socialcamp already hand-writes sign-off records (6 × 4–10 KB) beside 243 docs — so no new docs folder.
+
+**Overlap with Superpowers 6.4.1** (dropped or shrunk accordingly):
+- **Already covered:**
+  - brainstorming: spec self-review — placeholders, contradictions, scope, ambiguity.
+  - writing-plans: spec → task coverage.
+  - subagent-driven-development: task-vs-task conflict scan, per-task spec review, final whole-branch review, "Rulings I made".
+  - verification-before-completion: "Requirements met → line-by-line checklist".
+- **Not covered:**
+  - a whole-doc requirement → milestone map;
+  - unknowns that need a spike before building;
+  - ADR / `ARCHITECTURE.md` conflicts;
+  - a visible criterion → evidence table with a verdict and an explicit waiver;
+  - a record of first strikes across fresh sessions;
+  - labels on diagnoses.
+- **Idea → requirements doc:** brainstorming already does this end to end.
+
+**What shipped:**
+- **Readiness** (`workflows/readiness.md`, 1.6k chars). Runs once per requirements doc, after triage and before milestones are presented. It checks:
+  - coverage: orphans and strays;
+  - acceptance criteria, with the user-facing list moved out of the persona;
+  - dependencies and unknowns, with a spike for platform-capability unknowns;
+  - ADR / `ARCHITECTURE.md` conflicts.
+
+  The verdict is `READY` or `GAPS: n` plus 🟡 questions, delivered in chat. It asks only questions that change milestone boundaries or feasibility; per-feature questions stay with brainstorming.
+- **Milestone close** (`workflows/milestone-close.md`, 4.1k chars). Runs before declaring a milestone done, and before Superpowers' merge menu so the user gets one turn for both:
+  - verify;
+  - walk the product (the browser how-to moved out of the persona);
+  - trace, `| Criterion | Evidence | Status |`:
+    - a unit test alone never makes a user-facing criterion ✅;
+    - a defect hit inside a criterion's own flow marks it ⚠️/❌, not a side note.
+  - verdict `PASS` / `CONCERNS` / `FAIL` / `WAIVED`, the first that applies in the order FAIL → CONCERNS → WAIVED → PASS; on FAIL the merge menu waits; the close's doc edits are committed on the branch before the menu;
+    - a criterion PmCamp couldn't observe stays ⏳ → `CONCERNS` until the user confirms; never `PASS` from the checklist alone;
+    - `WAIVED` needs the user's own words, recorded next to the criterion.
+  - record: `STATUS.md` gets one `M<n>: <verdict> (date)` line under its prune rule; an ADR if needed; no new files besides `ARCHITECTURE.md`;
+  - the `ARCHITECTURE.md` upkeep and `/ponytail-review`, moved out of the persona;
+  - retro: at most 3 lines under the requirements doc's `## Retro`. Earlier lines are read first, so a repeat reaches Known pitfalls even across fresh sessions.
+- **Persona:**
+  - triggers at concrete moments ("Before presenting them for confirmation, Read …", "Before declaring a milestone done — and before Superpowers' merge menu — Read …");
+  - the walkthrough ACTION stays in the persona, only the how-to moved;
+  - evidence labels ✅ / 🔎 / ❓ — never present 🔎/❓ as ✅;
+  - correct-course: impact on milestones / ADRs / `ARCHITECTURE.md` / tests + 2–3 options; the user decides; then the doc and `STATUS.md` are updated.
+  - **Lanes:** Bounded skips readiness and closes with an evidence line instead of the table. Tests, impact analysis, verification, evidence labels and the walkthrough never skip.
+- **/kickcamp** names both files at the same moments. A missing file → ask for `/basecamp refresh` and verify per the persona meanwhile.
+- **Delivery:** stamped project copies in `.claude/camp/workflows/`, tracked by the copy audit like `rules/`. Refresh writes them as `❌ missing` in existing projects.
+
+**Delivery choice, measured** (socialcamp copy, Claude Code 2.1.289, 3 draft gates):
+
+| | Main | Sub-agent (override on) | Override declined | PM can use |
+|---|---|---|---|---|
+| plugin dir, path from the hook | +123 tokens (256-char line) | 0 | 0 | Read of `~/.claude/plugins/cache/…` prompts; `Read(~/.claude/plugins/cache/*/camp/**)` in allow fixes it |
+| `.claude/camp/workflows/` ★ | 0 — not auto-loaded | 0 | 0 | Read, no prompt |
+| model-invocable skills | +278 (+727 listing chars) | 0 | +727 chars per spawn | yes |
+| skills with `disable-model-invocation` | 0 | 0 | 0 | no — "cannot be used with Skill tool … do not replicate this skill's workflow" |
+
+Project copies also keep the persona and the gates in step: both change only on refresh.
+
+**Measured tokens** (first request, MCP and claude-mem off, committed fixtures, 2 reps, identical):
+
+| Project | Main v1.2.8 → v1.3.0 | Sub-agent |
+|---|---|---|
+| socialcamp copy | 29,172 → 28,884 (−288) | 14,178 → 14,177 |
+| FastAPI (new) | 27,208 → 26,919 (−289) | 12,214 → 12,212 |
+
+The persona went 8,479 → 7,533 chars (UTF-16, as the hook counts) — 948 fewer in the hook output, about 3.3 chars per token. A close adds one ~1.2k-token read in the session that runs it.
+
+**Behavioural probes** (headless, PmCamp on Opus, Vietnamese prompts, a stdlib notes app with a requirements doc, an ADR and 4 criteria):
+
+| Probe | Read the file | Outcome | Cost · time |
+|---|---|---|---|
+| `/camp:kickcamp` readiness | ✅ | `GAPS: 3` — M3 conflicts with ADR 0001 (no network), M2 lacks criteria, M1 lacks error states; Drive-API option gets a spike; numbered 🟡 questions | $0.36 · 54s |
+| close, agent-browser | ✅ | table from curl + agent-browser, `CONCERNS`, `STATUS` line, Retro line, ponytail-review run, `ARCHITECTURE.md` correctly skipped (1 module) | $0.73 · 152s |
+| close, Playwright found instead | ✅ | AC3 ⚠️ (empty state missing after deleting the last note) → `FAIL`; asks for the user's own words to waive | $0.75 · 199s |
+| close after `/compact`, no browser used | ✅ | persona re-injected after the compact; AC4 (JS delete without reload) ⏳ + 5-step manual checklist → `CONCERNS`, never `PASS` | $0.98 · 133s |
+| Bounded task | ✅ | no table, no verdict; tests + agent-browser walkthrough; 4 evidence bullets rather than one line; caught the requirements doc still quoting the old text | $0.48 · 92s |
+| close ×2 after adding "a defect inside a criterion's own flow marks it ⚠️/❌" | ✅ | both now score the empty-state bug against AC3: one sends a sub-agent to fix it and re-walks → `CONCERNS` (R1 body question), the other → `FAIL` and asks to fix or waive | $2.39 · 312s / $0.83 · 184s |
+| "finish branch m1" — unmerged, with the empty-state bug (final file, after review) | ✅ | no FAIL + menu: a sub-agent fixes the bug first, re-walk, then the close docs are committed on `m1`, then the verdict (`CONCERNS` — agent-browser couldn't reach localhost here, so AC4 ⏳ + a manual checklist) is presented together with Superpowers' merge menu | $1.13 · 310s |
+| `/camp:basecamp refresh` on a v1.2.8 socialcamp copy | — | both workflows `❌ missing` → added and stamped v1.3.0 (body hash = stamp); untouched copies ⬆️ → v1.3.0; opt-in steps already decided; cleanup `CLEAN`. A second refresh: everything ✅ current, no file changed | $0.75 · 92s / $0.62 · 63s |
+| diagnosis | — | ✅ only on the reproduced cause (5/5 runs + the commit diff); "sometimes" → 🔎; NFS risks → ❓; no 🔎/❓ shown as ✅ | $0.35 · 40s |
+
+**Known gaps:**
+- The merge-menu probe on a clean branch (no bug) was cut off by a session restart and not re-run; the buggy-branch probe covered the order: gate → fix → commit → verdict + menu.
+- agent-browser failed to open localhost (`ERR_ADDRESS_INVALID`) in two runs on this machine; the PM fell back to Playwright or to ⏳ + a manual checklist as designed.
+- The probes ran in parallel and the PMs picked the same port (8799) despite `PORT`. Two runs hit each other's server; both noticed and re-ran on a free port. This is a harness artifact, not a camp issue.
+- Bounded closes still list a few evidence bullets rather than one line.
+- On-demand files rely on the PM following the trigger — 6/6 here, but only one model and one fixture.
+- Deferred: drafting a requirements doc from a rough idea. brainstorming ends by invoking writing-plans, so /kickcamp would have to stop it after the spec. `docs/qa/` not added.
